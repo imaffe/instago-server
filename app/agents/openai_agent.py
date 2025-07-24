@@ -1,6 +1,6 @@
 import base64
 from io import BytesIO
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 from openai import OpenAI
@@ -77,19 +77,6 @@ class OpenAIAgent:
                 "tags": ["error"],
                 "markdown": "# Error\nFailed to process this screenshot."
             }
-    
-    def generate_embedding(self, text: str) -> List[float]:
-        try:
-            response = self.client.embeddings.create(
-                model="text-embedding-3-small",
-                input=text
-            )
-            
-            return response.data[0].embedding
-            
-        except Exception as e:
-            logger.error(f"Error generating embedding: {e}")
-            return [0.0] * 1536  # Default embedding dimension
 
 
 openai_agent = OpenAIAgent()

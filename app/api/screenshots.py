@@ -20,6 +20,7 @@ from app.models import Screenshot
 from app.models.schemas import ScreenshotResponse, ScreenshotUpdate, ScreenshotCreate
 from app.services.storage import storage_service
 from app.services.vector_store import vector_service
+from app.services.embedding import embedding_service
 
 router = APIRouter()
 executor = ThreadPoolExecutor(max_workers=5)
@@ -101,13 +102,13 @@ def process_screenshot_async(screenshot_id: str, image_url: str, content: bytes,
 
         result = agent.process_screenshot(content)
 
-        # Handle embedding generation
-        embedding = agent.generate_embedding(result["description"])
-
-        # If the current agent doesn't generate embeddings (e.g., Gemini, OpenRouter), use OpenAI
-        if embedding is None or all(v == 0.0 for v in embedding):
-            openai_agent = OpenAIAgent()
-            embedding = openai_agent.generate_embedding(result["description"])
+        # Generate embedding using dedicated embedding service
+        embedding = embedding_service.generate_embedding_from_screenshot_data(
+            title=result["title"],
+            description=result["description"],
+            tags=result["tags"],
+            markdown=result["markdown"]
+        )
 
         vector_id = vector_service.add_screenshot(screenshot_id, embedding, str(screenshot.user_id))
 

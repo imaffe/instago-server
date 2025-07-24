@@ -1,5 +1,5 @@
 import base64
-from typing import Dict, List, Optional
+from typing import Dict
 
 from openai import OpenAI
 
@@ -79,12 +79,6 @@ class OpenRouterAgent:
                 "tags": ["error"],
                 "markdown": "# Error\nFailed to process this screenshot."
             }
-    
-    def generate_embedding(self, text: str) -> List[float]:
-        # OpenRouter doesn't provide embeddings, so we'll need to use OpenAI for this
-        # or return a placeholder
-        logger.warning("OpenRouter doesn't support embeddings, using placeholder")
-        return [0.0] * 1536  # Default embedding dimension
 
 
 openrouter_agent = OpenRouterAgent()

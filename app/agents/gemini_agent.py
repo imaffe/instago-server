@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List
+from typing import Dict
 
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part, GenerationConfig
@@ -84,13 +84,6 @@ class GeminiAgent:
         except Exception as e:
             logger.error(f"Error processing screenshot with Gemini: {e}")
             return self._error_response()
-
-    def generate_embedding(self, text: str) -> List[float]:
-        # Note: Gemini doesn't directly provide embeddings like OpenAI
-        # You would need to use a different model or service for embeddings
-        # For now, we'll return None to indicate embeddings should be handled elsewhere
-        logger.info("Gemini agent does not generate embeddings, deferring to OpenAI")
-        return None
 
     def _error_response(self) -> Dict:
         return {
