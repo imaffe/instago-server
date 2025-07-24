@@ -40,14 +40,26 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-if settings.BACKEND_CORS_ORIGINS:
+# CORS configuration
+if settings.ENVIRONMENT == "development":
+    # Allow all origins in development for testing
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin).strip("/") for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_origins=["*"],  # Allow all origins
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+else:
+    # Use configured origins in production
+    if settings.BACKEND_CORS_ORIGINS:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[str(origin).strip("/") for origin in settings.BACKEND_CORS_ORIGINS],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
