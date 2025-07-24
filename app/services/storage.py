@@ -1,7 +1,8 @@
 import os
 import uuid
+from datetime import timedelta
 from io import BytesIO
-from typing import Tuple
+from typing import Tuple, Optional
 
 from google.cloud import storage
 from PIL import Image
@@ -48,8 +49,17 @@ class StorageService:
             thumb_blob = self.bucket.blob(thumbnail_path)
             thumb_blob.upload_from_string(thumb_content, content_type="image/png")
             
-            image_url = blob.public_url
-            thumbnail_url = thumb_blob.public_url
+            # Generate signed URLs that expire in 7 days
+            image_url = blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(days=7),
+                method="GET"
+            )
+            thumbnail_url = thumb_blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(days=7),
+                method="GET"
+            )
             
             metadata = {
                 "width": width,
@@ -65,7 +75,44 @@ class StorageService:
             logger.error(f"Error uploading screenshot: {e}")
             raise
     
-    async def delete_screenshot(self, image_url: str, thumbnail_url: str) -> bool:
+    def generate_signed_url(self, blob_name: str, expiration_days: int = 7) -> str:
+        """Generate a signed URL for a blob in the bucket."""
+        try:
+            blob = self.bucket.blob(blob_name)
+            return blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(days=expiration_days),
+                method="GET"
+            )
+        except Exception as e:
+            logger.error(f"Error generating signed URL for {blob_name}: {e}")
+            return ""
+    
+    def refresh_signed_url(self, old_url: str) -> str:
+        """Refresh a signed URL by extracting the blob name and generating a new signed URL."""
+        try:
+            # Extract blob name from URL
+            # Format: https://storage.googleapis.com/bucket-name/path/to/file?X-Goog-Signature=...
+            # or: https://bucket-name.storage.googleapis.com/path/to/file?X-Goog-Signature=...
+            if "storage.googleapis.com" in old_url:
+                # Remove query parameters
+                base_url = old_url.split("?")[0]
+                # Extract path after bucket name
+                if f"/{settings.GCS_BUCKET_NAME}/" in base_url:
+                    blob_name = base_url.split(f"/{settings.GCS_BUCKET_NAME}/")[1]
+                else:
+                    # Try alternative format
+                    blob_name = base_url.split(".storage.googleapis.com/")[1]
+                
+                return self.generate_signed_url(blob_name)
+            else:
+                # If it's already a blob name or path, use it directly
+                return self.generate_signed_url(old_url)
+        except Exception as e:
+            logger.error(f"Error refreshing signed URL: {e}")
+            return old_url
+    
+    async def delete_screenshot(self, image_url: str, thumbnail_url: Optional[str] = None) -> bool:
         try:
             image_path = image_url.split(f"{settings.GCS_BUCKET_NAME}/")[1]
             blob = self.bucket.blob(image_path)

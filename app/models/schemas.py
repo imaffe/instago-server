@@ -38,6 +38,35 @@ class ScreenshotResponse(ScreenshotBase):
 
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_db(cls, db_screenshot) -> "ScreenshotResponse":
+        """Convert database model to Pydantic response model"""
+        # Parse JSON ai_tags if present
+        ai_tags = None
+        if db_screenshot.ai_tags:
+            import json
+            try:
+                ai_tags = json.loads(db_screenshot.ai_tags)
+            except json.JSONDecodeError:
+                ai_tags = []
+        
+        return cls(
+            id=db_screenshot.id,
+            user_id=db_screenshot.user_id,
+            image_url=db_screenshot.image_url,
+            thumbnail_url=db_screenshot.thumbnail_url,
+            ai_title=db_screenshot.ai_title,
+            ai_description=db_screenshot.ai_description,
+            ai_tags=ai_tags,
+            markdown_content=db_screenshot.markdown_content,
+            user_note=db_screenshot.user_note,
+            created_at=db_screenshot.created_at,
+            updated_at=db_screenshot.updated_at,
+            width=db_screenshot.width,
+            height=db_screenshot.height,
+            file_size=db_screenshot.file_size
+        )
 
 
 class QueryRequest(BaseModel):

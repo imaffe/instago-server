@@ -27,12 +27,16 @@ class GeminiAgent:
                 logger.error(f"Failed to initialize Gemini agent: {e}")
                 self.initialized = False
 
-    def process_screenshot(self, image_bytes: bytes) -> Dict:
+    def process_screenshot(self, base64_image: str) -> Dict:
         if not self.initialized:
             logger.error("Gemini agent not initialized")
             return self._error_response()
 
         try:
+            # Decode base64 image
+            import base64
+            image_bytes = base64.b64decode(base64_image)
+            
             # Create image part for Vertex AI
             image_part = Part.from_data(
                 data=image_bytes,

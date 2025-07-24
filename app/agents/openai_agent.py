@@ -1,10 +1,6 @@
-import base64
-from io import BytesIO
 from typing import Dict
 
-import numpy as np
 from openai import OpenAI
-from PIL import Image
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -17,9 +13,8 @@ class OpenAIAgent:
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = settings.OPENAI_MODEL
     
-    def process_screenshot(self, image_bytes: bytes) -> Dict:
+    def process_screenshot(self, base64_image: str) -> Dict:
         try:
-            base64_image = base64.b64encode(image_bytes).decode('utf-8')
             
             response = self.client.chat.completions.create(
                 model=self.model,

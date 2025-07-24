@@ -18,7 +18,7 @@ from app.core.logging import get_logger
 from app.db.base import get_db
 from app.models import Screenshot
 from app.models.schemas import ScreenshotResponse, ScreenshotUpdate, ScreenshotCreate
-from app.services.storage import storage_service
+from app.services.storage import storage_service, StorageService
 from app.services.vector_store import vector_service
 from app.services.embedding import embedding_service
 
@@ -79,14 +79,14 @@ async def upload_screenshot(
         process_screenshot_async,
         str(screenshot.id),
         image_url,
-        content,
+        screenshot_data.screenshotFileBlob,  # Pass base64 directly
         selected_agent
     )
 
-    return screenshot
+    return ScreenshotResponse.from_db(screenshot)
 
 
-def process_screenshot_async(screenshot_id: str, image_url: str, content: bytes, agent=None):
+def process_screenshot_async(screenshot_id: str, image_url: str, base64_content: str, agent=None):
     try:
         from app.db.base import SessionLocal
         db = SessionLocal()
@@ -100,7 +100,7 @@ def process_screenshot_async(screenshot_id: str, image_url: str, content: bytes,
         if agent is None:
             agent = ai_agent
 
-        result = agent.process_screenshot(content)
+        result = agent.process_screenshot(base64_content)
 
         # Generate embedding using dedicated embedding service
         embedding = embedding_service.generate_embedding_from_screenshot_data(
@@ -139,11 +139,17 @@ async def get_screenshots(
         Screenshot.user_id == current_user_id
     ).order_by(Screenshot.created_at.desc()).offset(skip).limit(limit).all()
 
+    # Refresh signed URLs for each screenshot
+    storage_service = StorageService()
+    responses = []
     for screenshot in screenshots:
-        if screenshot.ai_tags:
-            screenshot.ai_tags = json.loads(screenshot.ai_tags)
-
-    return screenshots
+        response = ScreenshotResponse.from_db(screenshot)
+        # Refresh the signed URL if it exists
+        if response.image_url:
+            response.image_url = storage_service.refresh_signed_url(response.image_url)
+        responses.append(response)
+    
+    return responses
 
 
 @router.get("/screenshot-note/{screenshot_id}", response_model=ScreenshotResponse)
@@ -163,10 +169,14 @@ async def get_screenshot(
             detail="Screenshot not found"
         )
 
-    if screenshot.ai_tags:
-        screenshot.ai_tags = json.loads(screenshot.ai_tags)
-
-    return screenshot
+    response = ScreenshotResponse.from_db(screenshot)
+    
+    # Refresh the signed URL if it exists
+    if response.image_url:
+        storage_service = StorageService()
+        response.image_url = storage_service.refresh_signed_url(response.image_url)
+    
+    return response
 
 
 @router.put("/screenshot-note/{screenshot_id}", response_model=ScreenshotResponse)
@@ -196,10 +206,7 @@ async def update_screenshot(
     db.commit()
     db.refresh(screenshot)
 
-    if screenshot.ai_tags:
-        screenshot.ai_tags = json.loads(screenshot.ai_tags)
-
-    return screenshot
+    return ScreenshotResponse.from_db(screenshot)
 
 
 @router.delete("/screenshot/{screenshot_id}", status_code=status.HTTP_204_NO_CONTENT)
