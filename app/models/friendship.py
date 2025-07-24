@@ -1,7 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
+import uuid
 
-from sqlalchemy import Column, DateTime, String, UniqueConstraint
+from sqlalchemy import String, UniqueConstraint, text
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.db.base import Base
@@ -16,15 +18,31 @@ class FriendshipStatus(str, Enum):
 class Friendship(Base):
     __tablename__ = "friendships"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    # Primary key
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), 
+        primary_key=True, 
+        server_default=text("gen_random_uuid()")
+    )
     
-    requester_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    addressee_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    # Foreign keys
+    requester_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    addressee_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
     
-    status = Column(String(20), default=FriendshipStatus.PENDING, nullable=False)
+    # Status with default
+    status: Mapped[str] = mapped_column(
+        String(20), 
+        default=FriendshipStatus.PENDING
+    )
     
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
     
     __table_args__ = (
         UniqueConstraint('requester_id', 'addressee_id', name='unique_friendship'),

@@ -3,10 +3,13 @@ import time
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api import api_router
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.db.base import Base, engine
+from app.models import Screenshot, Friendship, Query  # Import all models to register them
 
 logger = get_logger(__name__)
 
@@ -14,6 +17,18 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up Instago Server...")
+    
+    # Create all tables
+    logger.info("Creating database tables...")
+    
+    # Enable UUID extension if not already enabled
+    with engine.connect() as conn:
+        conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
+        conn.commit()
+    
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created successfully")
+    
     yield
     logger.info("Shutting down Instago Server...")
 
