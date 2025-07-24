@@ -1,10 +1,7 @@
 import base64
-from io import BytesIO
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-import numpy as np
 from openai import OpenAI
-from PIL import Image
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -12,30 +9,33 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-class ScreenshotAgent:
+class OpenRouterAgent:
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.OPENAI_MODEL
+        self.client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=settings.OPENROUTER_API_KEY,
+        )
+        self.model = settings.OPENROUTER_MODEL or "qwen/qwen-vl-max"
     
-    def process_screenshot(self, image_bytes: bytes) -> Dict:
+    def process_screenshot(self, base64_image: str) -> Dict:
         try:
-            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+            logger.info(f"Processing screenshot with OpenRouter {self.model}")
             
             response = self.client.chat.completions.create(
+                extra_headers={
+                    "HTTP-Referer": settings.OPENROUTER_SITE_URL or "https://instago.app",
+                    "X-Title": settings.OPENROUTER_SITE_NAME or "Instago",
+                },
                 model=self.model,
                 messages=[
                     {
                         "role": "system",
-                        "content": """You are an AI assistant that analyzes screenshots and provides rich metadata.
-                        Analyze the screenshot and provide:
-                        1. A concise, descriptive title (max 200 chars)
-                        2. A detailed description of what's shown
-                        3. Relevant tags for categorization
-                        4. A markdown document with:
-                           - Summary of the content
-                           - Key information extracted
-                           - Relevant links and resources (if identifiable)
-                           - Actionable insights
+                        "content": """You are a helpful AI assistant analyzing screenshots. 
+                        Extract meaningful information and generate:
+                        1. A concise title (max 200 chars)
+                        2. A detailed description
+                        3. Relevant tags as an array
+                        4. Markdown formatted content with key information
                         
                         Return your response as JSON with keys: title, description, tags, markdown"""
                     },
@@ -72,7 +72,7 @@ class ScreenshotAgent:
             }
             
         except Exception as e:
-            logger.error(f"Error processing screenshot with AI: {e}")
+            logger.error(f"Error processing screenshot with OpenRouter: {e}")
             return {
                 "title": "Processing Error",
                 "description": "Failed to analyze screenshot",
@@ -81,14 +81,10 @@ class ScreenshotAgent:
             }
     
     def generate_embedding(self, text: str) -> List[float]:
-        try:
-            response = self.client.embeddings.create(
-                model="text-embedding-3-small",
-                input=text
-            )
-            
-            return response.data[0].embedding
-            
-        except Exception as e:
-            logger.error(f"Error generating embedding: {e}")
-            return [0.0] * 1536  # Default embedding dimension
+        # OpenRouter doesn't provide embeddings, so we'll need to use OpenAI for this
+        # or return a placeholder
+        logger.warning("OpenRouter doesn't support embeddings, using placeholder")
+        return [0.0] * 1536  # Default embedding dimension
+
+
+openrouter_agent = OpenRouterAgent()

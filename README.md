@@ -15,6 +15,7 @@ Backend API server for Instago - a Mac screenshot management tool with AI-powere
    ```bash
    cp .env.example .env
    # Edit .env with your credentials
+
    ```
 
 3. **Run the server:**

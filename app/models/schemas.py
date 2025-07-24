@@ -10,7 +10,10 @@ class ScreenshotBase(BaseModel):
 
 
 class ScreenshotCreate(BaseModel):
-    pass
+    screenshotTimestamp: int  # Unix timestamp
+    screenshotAppName: str  # Application name
+    screenshotTags: str = Field(..., max_length=16)  # User tag, max 16 chars
+    screenshotFileBlob: str  # Base64 encoded image
 
 
 class ScreenshotUpdate(BaseModel):

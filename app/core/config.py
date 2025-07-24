@@ -36,12 +36,21 @@ class Settings(BaseSettings):
     
     OPENAI_API_KEY: str
     OPENAI_MODEL: str = "gpt-4o"
+    OPENAI_EMBEDDING_DIM: int = 1536
+    
+    # OpenRouter Configuration
+    OPENROUTER_API_KEY: Optional[str] = None
+    OPENROUTER_MODEL: str = "qwen/qwen-vl-max"
+    OPENROUTER_SITE_URL: Optional[str] = "https://instago.app"
+    OPENROUTER_SITE_NAME: Optional[str] = "Instago"
     
     # Google Vertex AI Configuration
     VERTEX_AI_PROJECT: Optional[str] = None
     VERTEX_AI_LOCATION: str = "us-central1"
     GEMINI_MODEL: str = "gemini-2.0-flash-exp"
-    USE_GEMINI_FOR_SCREENSHOTS: bool = False
+    
+    # Agent selection - "openai", "gemini", or "openrouter"
+    AGENT_NAME: str = "openai"
     
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
 
