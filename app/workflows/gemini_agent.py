@@ -3,7 +3,7 @@ import json
 from typing import Dict
 
 from google import genai
-from google.genai.types import GenerateContentConfig, Part
+from google.genai.types import GenerateContentConfig, Part, HttpOptions
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -66,7 +66,7 @@ class GeminiAgent:
                             "description": "A concise, descriptive title (max 200 chars)"
                         },
                         "description": {
-                            "type": "string", 
+                            "type": "string",
                             "description": "A detailed description of what's shown"
                         },
                         "tags": {
@@ -86,7 +86,7 @@ class GeminiAgent:
             response = self.client.models.generate_content(
                 model=settings.GEMINI_MODEL,
                 contents=[
-                    Part.from_text(prompt),
+                    Part.from_text(text=prompt),
                     Part.from_bytes(
                         data=image_bytes,
                         mime_type="image/png"

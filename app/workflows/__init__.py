@@ -1,6 +1,6 @@
-from app.agents.openai_agent import OpenAIAgent
-from app.agents.gemini_agent import GeminiAgent
-from app.agents.openrouter_agent import OpenRouterAgent
+from app.workflows.openai_agent import OpenAIAgent
+from app.workflows.gemini_agent import GeminiAgent
+from app.workflows.openrouter_agent import OpenRouterAgent
 from app.core.config import settings
 
 # Initialize the appropriate agent based on AGENT_NAME configuration

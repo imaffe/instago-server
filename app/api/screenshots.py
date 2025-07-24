@@ -1,6 +1,6 @@
 import json
 import base64
-from concurrent.futures import ThreadPoolExecutor
+# from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
@@ -8,10 +8,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
 from sqlalchemy.orm import Session
 
-from app.agents import ai_agent
-from app.agents.openai_agent import OpenAIAgent
-from app.agents.gemini_agent import GeminiAgent
-from app.agents.openrouter_agent import OpenRouterAgent
+from app.workflows import ai_agent
+from app.workflows.openai_agent import OpenAIAgent
+from app.workflows.gemini_agent import GeminiAgent
+from app.workflows.openrouter_agent import OpenRouterAgent
 from app.core.auth import get_current_user_id
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -23,7 +23,7 @@ from app.services.vector_store import vector_service
 from app.services.embedding import embedding_service
 
 router = APIRouter()
-executor = ThreadPoolExecutor(max_workers=5)
+# executor = ThreadPoolExecutor(max_workers=5)
 logger = get_logger(__name__)
 
 
@@ -75,21 +75,35 @@ async def upload_screenshot(
     else:
         selected_agent = OpenAIAgent()  # Default to OpenAI
 
-    executor.submit(
-        process_screenshot_async,
+    # Comment out executor.submit and use await instead
+    # executor.submit(
+    #     process_screenshot_async,
+    #     str(screenshot.id),
+    #     image_url,
+    #     screenshot_data.screenshotFileBlob,  # Pass base64 directly
+    #     selected_agent
+    # )
+    
+    # Process screenshot synchronously in the same pipeline
+    await process_screenshot_async(
         str(screenshot.id),
         image_url,
         screenshot_data.screenshotFileBlob,  # Pass base64 directly
-        selected_agent
+        selected_agent,
+        db
     )
 
     return ScreenshotResponse.from_db(screenshot)
 
 
-def process_screenshot_async(screenshot_id: str, image_url: str, base64_content: str, agent=None):
+async def process_screenshot_async(screenshot_id: str, image_url: str, base64_content: str, agent=None, db: Session = None):
     try:
-        from app.db.base import SessionLocal
-        db = SessionLocal()
+        # Use provided db session or create a new one
+        close_db = False
+        if db is None:
+            from app.db.base import SessionLocal
+            db = SessionLocal()
+            close_db = True
 
         # Get screenshot to access user_id
         screenshot = db.query(Screenshot).filter(Screenshot.id == screenshot_id).first()
@@ -124,7 +138,8 @@ def process_screenshot_async(screenshot_id: str, image_url: str, base64_content:
     except Exception as e:
         print(f"Error processing screenshot {screenshot_id}: {e}")
     finally:
-        db.close()
+        if close_db:
+            db.close()
 
 
 @router.get("/screenshot-note", response_model=List[ScreenshotResponse])

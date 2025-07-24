@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.agents import ai_agent
+from app.workflows import ai_agent
 from app.core.auth import get_current_user_id
 from app.db.base import get_db
 from app.models import Friendship, Screenshot, Query

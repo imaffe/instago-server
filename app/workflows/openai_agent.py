@@ -12,10 +12,9 @@ class OpenAIAgent:
     def __init__(self):
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = settings.OPENAI_MODEL
-    
+
     def process_screenshot(self, base64_image: str) -> Dict:
         try:
-            
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -27,9 +26,9 @@ class OpenAIAgent:
                         2. A detailed description of what you see
                         3. Relevant tags as an array of strings
                         4. Markdown formatted content with key information, insights, and any text found in the image
-                        
+
                         Focus on extracting actionable information, text content, UI elements, and any data shown.
-                        
+
                         Return your response as JSON with keys: title, description, tags, markdown"""
                     },
                     {
@@ -52,18 +51,18 @@ class OpenAIAgent:
                 max_tokens=2000,
                 temperature=0.3
             )
-            
+
             result = response.choices[0].message.content
             import json
             data = json.loads(result)
-            
+
             return {
                 "title": data.get("title", "Untitled Screenshot"),
                 "description": data.get("description", ""),
                 "tags": data.get("tags", []),
                 "markdown": data.get("markdown", "")
             }
-            
+
         except Exception as e:
             logger.error(f"Error processing screenshot with AI: {e}")
             return {
