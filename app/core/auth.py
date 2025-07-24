@@ -22,6 +22,8 @@ class AuthService:
         
     def verify_token(self, token: str) -> dict:
         try:
+            logger.debug(f"Attempting to verify token: {token[:20]}...")
+            
             options = {
                 "verify_signature": True,
                 "verify_aud": False,
@@ -35,10 +37,14 @@ class AuthService:
                 options=options
             )
             
+            logger.info(f"Token verified successfully for user: {payload.get('sub')}")
+            logger.debug(f"Token payload: {payload}")
+            
             return payload
             
         except JWTError as e:
             logger.error(f"JWT validation error: {e}")
+            logger.error(f"Token that failed: {token[:20]}...")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",

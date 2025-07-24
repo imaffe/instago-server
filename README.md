@@ -8,7 +8,7 @@ Backend API server for Instago - a Mac screenshot management tool with AI-powere
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
+   uv pip install -r requirements.txt
    ```
 
 2. **Set up environment:**

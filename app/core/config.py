@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     
     MILVUS_HOST: str = "localhost"
     MILVUS_PORT: int = 19530
+    MILVUS_TOKEN: str
     MILVUS_COLLECTION_NAME: str = "screenshots"
     
     OPENAI_API_KEY: str
