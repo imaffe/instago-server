@@ -9,7 +9,9 @@ Instago is a Mac screenshot management tool that uses LLMs to understand and enr
 - **Database**: PostgreSQL (via Supabase)
 - **Vector Store**: Milvus (for semantic search)
 - **Storage**: Google Cloud Storage (for images)
-- **AI Workflow**: OpenAI Agent SDK
+- **AI Workflow**: 
+  - OpenAI GPT-4 (default)
+  - Google Gemini 2.0 Flash via Vertex AI (optional)
 - **Deployment**: Google Cloud Run
 
 ## Progress Tracking
@@ -88,7 +90,8 @@ LOG_LEVEL=INFO
 - `DELETE /screenshot/{id}` - Delete screenshot
 
 ### Search
-- `POST /query` - Semantic search using natural language
+- `POST /query` - Semantic search using natural language (queries are stored with embeddings)
+- `GET /query-history` - Get user's search history
 
 ### Social Features
 - `POST /friend-request` - Send friend request

@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from app.agents import ai_agent
 from app.core.auth import get_current_user_id
 from app.db.base import get_db
-from app.models import Friendship, Screenshot
+from app.models import Friendship, Screenshot, Query
 from app.models.friendship import FriendshipStatus
-from app.models.schemas import QueryRequest, QueryResult, ScreenshotResponse
+from app.models.schemas import QueryRequest, QueryResult, ScreenshotResponse, QueryHistoryItem
 from app.services.vector_store import vector_service
 
 router = APIRouter()
@@ -49,6 +49,28 @@ async def search_screenshots(
         limit=query.limit
     )
     
+    # Store the query
+    query_record = Query(
+        user_id=current_user_id,
+        query_text=query.query,
+        results_count=len(search_results),
+        include_friends=1 if query.include_friends else 0
+    )
+    db.add(query_record)
+    db.commit()
+    db.refresh(query_record)
+    
+    # Add query to vector store
+    vector_id = vector_service.add_query(
+        str(query_record.id),
+        query_embedding,
+        current_user_id
+    )
+    
+    # Update query with vector ID
+    query_record.vector_id = vector_id
+    db.commit()
+    
     results = []
     for result in search_results:
         screenshot = db.query(Screenshot).filter(
@@ -71,9 +93,27 @@ async def search_screenshots(
                     friend_name = "Friend"
             
             results.append(QueryResult(
-                screenshot=ScreenshotResponse.from_orm(screenshot),
+                screenshot=ScreenshotResponse.model_validate(screenshot),
                 score=result["score"],
                 friend_name=friend_name
             ))
     
     return results
+
+
+@router.get("/query-history", response_model=List[QueryHistoryItem])
+async def get_query_history(
+    skip: int = 0,
+    limit: int = 50,
+    current_user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db)
+):
+    queries = db.query(Query).filter(
+        Query.user_id == current_user_id
+    ).order_by(Query.created_at.desc()).offset(skip).limit(limit).all()
+    
+    # Convert integer to boolean for include_friends
+    for query in queries:
+        query.include_friends = bool(query.include_friends)
+    
+    return queries

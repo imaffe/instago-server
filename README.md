@@ -31,7 +31,8 @@ Once running, visit `http://localhost:8000/docs` for interactive API documentati
 ## Key Endpoints
 
 - `POST /api/v1/screenshot` - Upload screenshot (used by Mac app)
-- `POST /api/v1/query` - Semantic search screenshots
+- `POST /api/v1/query` - Semantic search screenshots (queries are stored)
+- `GET /api/v1/query-history` - Get user's search history
 - `GET /api/v1/screenshot-note` - Get user's screenshots
 - `PUT /api/v1/screenshot-note/{id}` - Update screenshot metadata
 - `DELETE /api/v1/screenshot/{id}` - Delete screenshot
@@ -45,7 +46,22 @@ Once running, visit `http://localhost:8000/docs` for interactive API documentati
 - **Supabase**: Authentication and PostgreSQL database
 - **Google Cloud Storage**: Image storage
 - **Milvus**: Vector database for semantic search
-- **OpenAI API**: AI processing for screenshots
+- **OpenAI API**: AI processing for screenshots (required for embeddings)
+- **Google Vertex AI** (Optional): Alternative AI processing with Gemini 2.0 Flash
+
+## AI Agent Configuration
+
+The server supports two AI agents for screenshot processing:
+
+1. **OpenAI GPT-4** (Default)
+   - Set `USE_GEMINI_FOR_SCREENSHOTS=false` or leave unset
+   - Provides both image analysis and embeddings
+
+2. **Google Gemini 2.0 Flash** (Optional)
+   - Set `USE_GEMINI_FOR_SCREENSHOTS=true`
+   - Set `VERTEX_AI_PROJECT=your-gcp-project-id`
+   - Gemini analyzes images, OpenAI generates embeddings
+   - Faster and more cost-effective for image analysis
 
 ## Deployment
 

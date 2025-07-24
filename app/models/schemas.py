@@ -75,3 +75,14 @@ class HealthResponse(BaseModel):
     service: str
     version: str
     environment: str
+
+
+class QueryHistoryItem(BaseModel):
+    id: UUID
+    query_text: str
+    results_count: int
+    include_friends: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -34,14 +34,15 @@ class VectorService:
         else:
             fields = [
                 FieldSchema(name="id", dtype=DataType.VARCHAR, is_primary=True, max_length=100),
-                FieldSchema(name="screenshot_id", dtype=DataType.VARCHAR, max_length=100),
+                FieldSchema(name="entity_id", dtype=DataType.VARCHAR, max_length=100),  # screenshot_id or query_id
+                FieldSchema(name="entity_type", dtype=DataType.VARCHAR, max_length=20),  # "screenshot" or "query"
                 FieldSchema(name="user_id", dtype=DataType.VARCHAR, max_length=100),
                 FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=self.dimension)
             ]
             
             schema = CollectionSchema(
                 fields=fields,
-                description="Screenshot embeddings for semantic search"
+                description="Embeddings for screenshots and queries"
             )
             
             self.collection = Collection(
@@ -65,13 +66,20 @@ class VectorService:
         self.collection.load()
     
     def add_screenshot(self, screenshot_id: str, embedding: List[float], user_id: str = None) -> str:
+        return self.add_entity(screenshot_id, "screenshot", embedding, user_id)
+    
+    def add_query(self, query_id: str, embedding: List[float], user_id: str) -> str:
+        return self.add_entity(query_id, "query", embedding, user_id)
+    
+    def add_entity(self, entity_id: str, entity_type: str, embedding: List[float], user_id: str = None) -> str:
         try:
             import uuid
             vector_id = str(uuid.uuid4())
             
             data = [
                 [vector_id],
-                [screenshot_id],
+                [entity_id],
+                [entity_type],
                 [user_id or ""],
                 [embedding]
             ]
@@ -79,11 +87,11 @@ class VectorService:
             self.collection.insert(data)
             self.collection.flush()
             
-            logger.info(f"Added vector for screenshot {screenshot_id}")
+            logger.info(f"Added vector for {entity_type} {entity_id}")
             return vector_id
             
         except Exception as e:
-            logger.error(f"Error adding screenshot to vector store: {e}")
+            logger.error(f"Error adding {entity_type} to vector store: {e}")
             raise
     
     def search_screenshots(
@@ -98,7 +106,8 @@ class VectorService:
                 "params": {"nprobe": 10}
             }
             
-            expr = f"user_id in {user_ids}" if len(user_ids) > 1 else f'user_id == "{user_ids[0]}"'
+            user_expr = f"user_id in {user_ids}" if len(user_ids) > 1 else f'user_id == "{user_ids[0]}"'
+            expr = f'({user_expr}) and (entity_type == "screenshot")'
             
             results = self.collection.search(
                 data=[query_embedding],
@@ -106,14 +115,14 @@ class VectorService:
                 param=search_params,
                 limit=limit,
                 expr=expr,
-                output_fields=["screenshot_id", "user_id"]
+                output_fields=["entity_id", "user_id"]
             )
             
             search_results = []
             for hits in results:
                 for hit in hits:
                     search_results.append({
-                        "screenshot_id": hit.entity.get("screenshot_id"),
+                        "screenshot_id": hit.entity.get("entity_id"),
                         "user_id": hit.entity.get("user_id"),
                         "score": hit.score
                     })

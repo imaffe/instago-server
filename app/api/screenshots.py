@@ -62,22 +62,34 @@ async def upload_screenshot(
 def process_screenshot_async(screenshot_id: str, image_url: str, content: bytes):
     try:
         from app.db.base import SessionLocal
+        from app.agents.screenshot_agent import ScreenshotAgent
         db = SessionLocal()
+        
+        # Get screenshot to access user_id
+        screenshot = db.query(Screenshot).filter(Screenshot.id == screenshot_id).first()
+        if not screenshot:
+            return
         
         result = ai_agent.process_screenshot(content)
         
+        # Handle embedding generation
         embedding = ai_agent.generate_embedding(result["description"])
-        vector_id = vector_service.add_screenshot(screenshot_id, embedding)
         
-        screenshot = db.query(Screenshot).filter(Screenshot.id == screenshot_id).first()
-        if screenshot:
-            screenshot.ai_title = result["title"]
-            screenshot.ai_description = result["description"]
-            screenshot.ai_tags = json.dumps(result["tags"])
-            screenshot.markdown_content = result["markdown"]
-            screenshot.vector_id = vector_id
-            
-            db.commit()
+        # If the current agent doesn't generate embeddings (e.g., Gemini), use OpenAI
+        if embedding is None:
+            openai_agent = ScreenshotAgent()
+            embedding = openai_agent.generate_embedding(result["description"])
+        
+        vector_id = vector_service.add_screenshot(screenshot_id, embedding, str(screenshot.user_id))
+        
+        # Update screenshot with AI results
+        screenshot.ai_title = result["title"]
+        screenshot.ai_description = result["description"]
+        screenshot.ai_tags = json.dumps(result["tags"])
+        screenshot.markdown_content = result["markdown"]
+        screenshot.vector_id = vector_id
+        
+        db.commit()
         
     except Exception as e:
         print(f"Error processing screenshot {screenshot_id}: {e}")

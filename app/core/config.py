@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     OPENAI_MODEL: str = "gpt-4o"
     
+    # Google Vertex AI Configuration
+    VERTEX_AI_PROJECT: Optional[str] = None
+    VERTEX_AI_LOCATION: str = "us-central1"
+    GEMINI_MODEL: str = "gemini-2.0-flash-exp"
+    USE_GEMINI_FOR_SCREENSHOTS: bool = False
+    
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
