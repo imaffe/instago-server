@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str
     SUPABASE_JWT_SECRET: str
     
+    DATABASE_URL: str
+    
     GCS_BUCKET_NAME: str
     GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None
     

@@ -4,12 +4,15 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
 
-SQLALCHEMY_DATABASE_URL = settings.SUPABASE_URL.replace("https://", "postgresql://postgres:") + "@db." + settings.SUPABASE_URL.split("//")[1].split(".")[0] + ".supabase.co:5432/postgres"
+# Use the database URL (can be Supabase, local PostgreSQL, or any PostgreSQL instance)
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
 
 Base = declarative_base()
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_db():
