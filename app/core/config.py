@@ -19,8 +19,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     
     SUPABASE_URL: str
+    SUPABASE_PROJECT_ID: str
     SUPABASE_ANON_KEY: str
     SUPABASE_SERVICE_KEY: str
+    SUPABASE_JWT_SECRET: str
     
     GCS_BUCKET_NAME: str
     GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None

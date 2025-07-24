@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.agents import ai_agent
 from app.core.auth import get_current_user_id
+from app.core.logging import get_logger
 from app.db.base import get_db
 from app.models import Screenshot
 from app.models.schemas import ScreenshotResponse, ScreenshotUpdate
@@ -16,6 +17,7 @@ from app.services.vector_store import vector_service
 
 router = APIRouter()
 executor = ThreadPoolExecutor(max_workers=5)
+logger = get_logger(__name__)
 
 
 @router.post("/screenshot", response_model=ScreenshotResponse, status_code=status.HTTP_201_CREATED)
@@ -104,6 +106,7 @@ async def get_screenshots(
     current_user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
+    logger.info(f"Fetching screenshots for user: {current_user_id}, skip: {skip}, limit: {limit}")
     screenshots = db.query(Screenshot).filter(
         Screenshot.user_id == current_user_id
     ).order_by(Screenshot.created_at.desc()).offset(skip).limit(limit).all()

@@ -79,7 +79,7 @@ class VectorService:
 
         self.collection.load()
 
-    def add_screenshot(self, screenshot_id: str, embedding: List[float], user_id: str = None) -> str:
+    def add_screenshot(self, screenshot_id: str, embedding: List[float], user_id: str = "") -> str:
         return self.add_entity(screenshot_id, "screenshot", embedding, user_id)
 
     def add_query(self, query_id: str, embedding: List[float], user_id: str) -> str:
