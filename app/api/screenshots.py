@@ -159,7 +159,7 @@ async def process_screenshot_async(screenshot_id: str, image_url: str, base64_co
         screenshot.ai_tags = json.dumps(tags)
         screenshot.markdown_content = markdown_output
         screenshot.vector_id = vector_id
-        screenshot.quick_link = quick_link 
+        screenshot.quick_link = quick_link # Store as JSON
 
         db.commit()
 

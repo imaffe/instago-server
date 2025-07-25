@@ -20,7 +20,9 @@ You analyze screenshot content to identify actionable information and help users
 
 
 # Core Mandate
-- **Do not summarize**: Your prmary task is to find objective information without presenting summarized or paraphrased content(unless return by a summary tool).
+
+- **Highly prefer select text from extracted text for title and description**: Use the most relevant text from the screenshot as the title and description when possible.
+- **Do not summarize**: Your prmary task is to find objective information.  Try not to summarize or paraphrase content(unless return by a summary tool) as much as possible.
 
 # Priamy Workflow
 A typical task should have three parts:
@@ -42,7 +44,7 @@ PART 2 - ACTION IDENTIFICATION:
 
 
 TYPICAL ACTIONS:
-- FindOrigin: Find the original sources of the content using web search, find 1 result and verify they matches, then include the URL in the final output.
+- FindOrigin: Find the original sources of the content using web search. Prefer using text directly from the highlight extracted text. Find 1 result and verify they matches, then include the final URL in the final output.
 - FindReference: If the content references a specific book, article, or product, find the referenced item using web search and include the URL that best matches the reference.
 - FindSearchText: If you can't find the original source because the web search tool is restricted for certain websites, you can create a search string that user will later copy and paste into their application to find the original source in a closed content ecosystem.
 - AddAsReminder: Compose a reminder related json object and present it in the final output.
@@ -63,8 +65,9 @@ PART 3 - PLAN AUTOMATION:
 
 
 # Output format:
-1. Original precise content of the screenshot (no summarization,)
-2. Gathered information in well formatted markdown from the screenshot by using the thinking and tools.
+1. Original precise content of the screenshot (no summarization)
+2. Include the extracted body texts you think are the most relevant for the user in the markdown.
+3. Gathered information in well formatted markdown from the screenshot by using the thinking and tools.
 
 """
 
@@ -150,10 +153,30 @@ class ClaudeAgent:
             # Run the unified analyzer and source finder
             result = await Runner.run(analyzer_finder, prompt)
 
+            # Log result details for debugging
+            logger.info(f"Result type: {type(result)}")
+
+            # Try to access tool call history if available
+            if hasattr(result, 'history'):
+                logger.info("Logging agent execution history:")
+                for item in result.history:
+                    if hasattr(item, 'tool_name'):
+                        logger.info(f"Tool called: {item.tool_name}")
+                    if hasattr(item, 'tool_args'):
+                        logger.info(f"Tool arguments: {item.tool_args}")
+                    if hasattr(item, 'tool_result'):
+                        logger.info(f"Tool response preview: {str(item.tool_result)[:500]}...")
+
+            # Alternative: Check for run logs
+            if hasattr(result, 'run'):
+                logger.info(f"Run ID: {result.run.id if hasattr(result.run, 'id') else 'N/A'}")
+                if hasattr(result.run, 'logs'):
+                    logger.info(f"Run logs available: {len(result.run.logs)} entries")
+
             # Get the markdown output directly
             markdown_output = result.final_output
             logger.info(f"Got markdown output with length: {len(markdown_output)}")
-            
+
             return markdown_output
 
         except Exception as e:
