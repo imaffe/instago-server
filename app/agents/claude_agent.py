@@ -4,7 +4,7 @@ Claude Agent with Web Search Tool using OpenAI Agents SDK
 import os
 from typing import Optional, Dict, List
 
-from agents import Agent, Runner
+from agents import Agent, Runner, trace
 from agents.extensions.models.litellm_model import LitellmModel
 
 from app.core.logging import get_logger
@@ -150,32 +150,21 @@ class ClaudeAgent:
             )
 
             logger.info(f"Running analyzer-finder with prompt length: {len(prompt)}")
-            # Run the unified analyzer and source finder
-            result = await Runner.run(analyzer_finder, prompt)
 
-            # Log result details for debugging
-            logger.info(f"Result type: {type(result)}")
+            # Use trace to capture the entire workflow
+            with trace("Screenshot Analysis Workflow") as workflow_trace:
+                # Run the unified analyzer and source finder
+                result = await Runner.run(analyzer_finder, prompt)
 
-            # Try to access tool call history if available
-            if hasattr(result, 'history'):
-                logger.info("Logging agent execution history:")
-                for item in result.history:
-                    if hasattr(item, 'tool_name'):
-                        logger.info(f"Tool called: {item.tool_name}")
-                    if hasattr(item, 'tool_args'):
-                        logger.info(f"Tool arguments: {item.tool_args}")
-                    if hasattr(item, 'tool_result'):
-                        logger.info(f"Tool response preview: {str(item.tool_result)[:500]}...")
+                # Log trace information
+                logger.info(f"=== Trace Information ===")
+                logger.info(f"Trace ID: {workflow_trace.trace_id}")
 
-            # Alternative: Check for run logs
-            if hasattr(result, 'run'):
-                logger.info(f"Run ID: {result.run.id if hasattr(result.run, 'id') else 'N/A'}")
-                if hasattr(result.run, 'logs'):
-                    logger.info(f"Run logs available: {len(result.run.logs)} entries")
-
-            # Get the markdown output directly
-            markdown_output = result.final_output
-            logger.info(f"Got markdown output with length: {len(markdown_output)}")
+                # Get the markdown output directly
+                markdown_output = result.final_output
+                logger.info(f"\n=== Final Output ===")
+                logger.info(f"Output length: {len(markdown_output)}")
+                logger.info(f"Output preview: {markdown_output[:500]}...")
 
             return markdown_output
 
