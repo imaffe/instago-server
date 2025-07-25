@@ -13,8 +13,8 @@ alembic==1.13.3
 
 # Authentication
 supabase==2.10.0
-python-jose[cryptography]==3.3.0
-PyJWT==2.9.0
+python-jose[cryptography]==3.5.0
+PyJWT==2.10.1
 cryptography==43.0.3
 passlib[bcrypt]==1.7.4
 
