@@ -71,6 +71,11 @@ PART 3 - PLAN AUTOMATION:
 """
 
 
+SCREENSHOT_AUTOMATION_USER_INSTRUCTIONS = """
+
+"""
+
+
 class ClaudeAgent:
     """Agent powered by Claude model with web search capabilities using OpenAI Agents SDK"""
 
@@ -99,7 +104,7 @@ class ClaudeAgent:
 
             analyzer_finder = Agent(
                 name="Screenshot Analyzer and Source Finder",
-                instructions=SCREENSHOT_SOURCE_FINDER_INSTRUCTIONS,
+                instructions=SCREENSHOT_AUTOMATION_INSTRUCTIONS,
                 model=LitellmModel(
                     model="anthropic/claude-sonnet-4-20250514",
                     api_key=self.api_key
@@ -109,7 +114,7 @@ class ClaudeAgent:
             )
 
             # Construct the search prompt
-            prompt = SCREENSHOT_SOURCE_SEARCH_PROMPT.format(
+            prompt = SCREENSHOT_AUTOMATION_USER_INSTRUCTIONS.format(
                 title=screenshot_info.get('title', 'Unknown'),
                 description=screenshot_info.get('description', ''),
                 tags=', '.join(screenshot_info.get('tags', [])),
