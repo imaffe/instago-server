@@ -18,6 +18,7 @@ OUTPUT_SCHEMA = types.Schema(
             type=types.Type.STRING,
             description="A overal description of everything visible in the screenshot"
         ),
+
         "application": types.Schema(
             type=types.Type.STRING,
             description="Which application, website are the primary focus of the screenshot"
@@ -62,9 +63,13 @@ OUTPUT_SCHEMA = types.Schema(
             ),
             description="Array of distinct parts/sections found in the screenshot"
         ),
+        "extracted_highlight_text": types.Schema(
+            type=types.Type.STRING,
+            description="The part of text you think are the most important part of the image."
+        ),
 
     },
-    required=["general_description", "application", "parts"]
+    required=["general_description", "application", "parts", "extracted_highlight_text"]
 )
 
 
@@ -96,26 +101,27 @@ class GeminiOCRLLM:
 
             1. **general_description**: Provide a comprehensive overview of everything visible in the screenshot. Include the overall context, purpose, and what the user is looking at.
 
-            2. **application**: Identify the primary application, website, or system shown in the screenshot. Be specific (e.g., "Visual Studio Code", "Twitter", "Terminal", "Google Chrome - GitHub").
+            2. **application**: Identify the primary MacOS application (If Browser, identify the website) shown in the screenshot. Be specific (e.g. "X", "GitHub", "Medium", "Reddit", "Hackernews").
 
             3. **parts**: Break down the screenshot into distinct sections or areas. For each part:
                - **part_desc**: Describe what this section contains
                - **type**: Whether it's primarily 'text' or 'image' content
                - **location**: Where it appears (e.g., "top navigation bar", "main content area", "sidebar")
-               - **contents**: Extract ALL text/information as key-value pairs
+               - **contents**: Extract ALL OCR text as key-value pairs. The language should not be changed. The key is the type/category of this content like "title", "body_content", and the value is the actual OCR extracted text.
                  - For text content: use descriptive keys like "heading", "paragraph", "button_text", "menu_item", etc.
-                 - For code: use "code_snippet", "function_name", "variable", etc.
                  - For metadata: use "author", "timestamp", "username", etc.
-                 - Extract everything verbatim - do not summarize or paraphrase
+                 - Extract the "value" verbatim - do not summarize or paraphrase.
+
+            4. **extracted_highlight_text**: Identify the most important text from "content" value (OCR text). This should be the key information that users would most likely want to save or reference later. Examples:
+
 
             Important guidelines:
             - Extract ALL major visible text, including UI elements, menus, buttons, labels.
-            - Pay special attention to product name, books, and items that people most likely want to bookmark and save for later.
-            - Note usernames, timestamps, URLs, file paths, and any metadata
+
             - Be thorough - every piece of text should be captured in the appropriate part.
             - Group related content logically into parts (e.g., navigation bar, main content, sidebar)
             - Describe relative locations of each parts.
-            - Provide a concise description of what each part does.
+            - Provide a concise description of what each part does in part_desc.
             """
 
             config = types.GenerateContentConfig(

@@ -16,7 +16,7 @@ def google_search(query: str) -> str:
     Search the web using Google Custom Search API and return formatted results.
 
     Args:
-        query: The search query string
+        query: The search query string extracted directly from screenshot text. Language should be the same.
 
     Returns:
         Formatted search results as a string
@@ -41,7 +41,11 @@ def google_search(query: str) -> str:
             "num": 5  # Number of results to return (max 10 per request)
         }
 
-        logger.info(f"Sending request to Google Custom Search API")
+        logger.info(f"Google Search API parameters:")
+        logger.info(f"  - Query: {query}")
+        logger.info(f"  - Search Engine ID: {search_engine_id[:10]}...")  # Log first 10 chars for security
+        logger.info(f"  - Number of results: {params['num']}")
+        logger.info(f"  - API endpoint: {url}")
         with httpx.Client() as client:
             response = client.get(url, params=params)
             response.raise_for_status()
