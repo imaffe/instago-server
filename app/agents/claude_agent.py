@@ -8,7 +8,7 @@ from agents import Agent, Runner, trace
 from agents.extensions.models.litellm_model import LitellmModel
 
 from app.core.logging import get_logger
-from app.agents.tools import view_webpage, google_search
+from app.agents.tools import view_webpage, google_search, think_and_plan
 
 logger = get_logger(__name__)
 
@@ -27,7 +27,12 @@ You analyze screenshot content to identify actionable information and help users
 # Priamy Workflow
 A typical task should have three parts:
 
-PART 1 - INFER USER'S MOST POSSIBLE INTENTION:
+Part 1 PLAN
+1. Pass all content of the user input to the thinking tool and get a detailed thinking process and plan of what to do next.
+2. For web search, try at most 3 times to find the original source of the content.
+3. For other types of search like finding references, execute at most 3 times in total.
+
+PART 2 - INFER USER'S MOST POSSIBLE INTENTION:
 1. Analyze the screenshot text description to identify what type of information it contains.
 2. Extract key data points, URLs, commands, code snippets, or instructions, item names (like booknames, product names, author names etc)
 3. Determine the user's likely intention based on the content type (e.g., code, documentation, social media, etc.)
@@ -39,9 +44,9 @@ TYPICAL USE CASES:
 - TODO: User wants to create a TODO task, but unlike-reminder there is no hard deadline, but the information is actionable for user.
 
 
-PART 2 - ACTION IDENTIFICATION:
+PART 3 - ACTION IDENTIFICATION:
 1. Determine what actions could be automated so when user later reviews these screenshots, they can better do what they want.
-
+2. Each action is executed at most once.
 
 TYPICAL ACTIONS:
 - FindOrigin: Find the original sources of the content using web search. Always use text directly from the OCR text. Find 1 result and verify they matches, then include the final URL in the final output.
@@ -52,11 +57,12 @@ TYPICAL ACTIONS:
 - Research: Conduct a research based on the 1 most important topic, find related topics using web search and create a list of URLs related to that topic in the final output.
 
 
-TOOLS:(
+TOOLS:
+- **Think and Plan**: Use this tool FIRST to reason through complex tasks. Pass your current understanding and ask specific questions about what to do next. This helps you create better plans.
 - **Google Search**: Use this tool to find the original source of the content or related information. Always use the text directly from the screenshot in the original format, especially keep the original language and do not translate.
 - **View Webpage**: Use this tool to view the content of a webpage when you have found a relevant URL. This helps verify the content and extract additional information if needed.
 
-PART 3 - PLAN AUTOMATION:
+PART 4 - PLAN Refinement:
 1. Propose specific, actionable steps, including thinking and evaluation based on tool responses.
 2. Show detailed reasoning for each step, including how you arrived at the actions and what tool you will use to complete the action, and what arguments you should give to the tool.
 3. Use available tools to execute the actions and gather results.
@@ -140,9 +146,9 @@ class ClaudeAgent:
                 instructions=SCREENSHOT_AUTOMATION_INSTRUCTIONS,
                 model=LitellmModel(
                     model="anthropic/claude-sonnet-4-20250514",
-                    api_key=self.api_key
+                    api_key=self.api_key,
                 ) if self.api_key else "litellm/anthropic/claude-sonnet-4-20250514",
-                tools=[google_search, view_webpage]
+                tools=[think_and_plan, google_search, view_webpage]
             )
 
             # Format the parts array for the prompt
