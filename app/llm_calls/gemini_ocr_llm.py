@@ -69,21 +69,21 @@ OUTPUT_SCHEMA = types.Schema(
 
 
 
-class GeminiAgent:
+class GeminiOCRLLM:
     def __init__(self):
         self.initialized = False
         try:
 
             self.client = genai.Client()
             self.initialized = True
-            logger.info("Gemini agent initialized successfully")
+            logger.info("Gemini OCR LLM initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize Gemini agent: {e}")
+            logger.error(f"Failed to initialize Gemini OCR LLM: {e}")
             self.initialized = False
 
     def process_screenshot(self, base64_image: str) -> Dict:
         if not self.initialized:
-            logger.error("Gemini agent not initialized")
+            logger.error("Gemini OCR LLM not initialized")
             return self._error_response()
 
         try:
@@ -138,7 +138,10 @@ class GeminiAgent:
             )
 
             # Parse the JSON response
-            result = json.loads(response.text)
+            if response.text:
+                result = json.loads(response.text)
+            else:
+                raise ValueError("Empty response from Gemini")
 
             # Return the full JSON result from Gemini
             return result

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -30,6 +30,7 @@ class ScreenshotResponse(ScreenshotBase):
     ai_description: Optional[str] = None
     ai_tags: Optional[List[str]] = None
     markdown_content: Optional[str] = None
+    quick_link: Optional[Dict[str, str]] = None  # {"type": "direct"|"search_str", "content": "..."}
     created_at: datetime
     updated_at: datetime
     width: Optional[float] = None
@@ -60,6 +61,7 @@ class ScreenshotResponse(ScreenshotBase):
             ai_description=db_screenshot.ai_description,
             ai_tags=ai_tags,
             markdown_content=db_screenshot.markdown_content,
+            quick_link=db_screenshot.quick_link,  # JSON field is automatically handled
             user_note=db_screenshot.user_note,
             created_at=db_screenshot.created_at,
             updated_at=db_screenshot.updated_at,

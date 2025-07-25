@@ -22,6 +22,7 @@ passlib[bcrypt]==1.7.4
 google-cloud-storage==2.18.2
 
 # AI/ML
+openai==1.97.0
 openai-agents[litellm]==0.2.3
 pymilvus==2.4.8
 numpy==1.26.4
