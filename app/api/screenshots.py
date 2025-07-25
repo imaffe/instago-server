@@ -83,7 +83,7 @@ async def upload_screenshot(
     #     screenshot_data.screenshotFileBlob,  # Pass base64 directly
     #     selected_agent
     # )
-    
+
     # Process screenshot synchronously in the same pipeline
     await process_screenshot_async(
         str(screenshot.id),
@@ -96,7 +96,7 @@ async def upload_screenshot(
     return ScreenshotResponse.from_db(screenshot)
 
 
-async def process_screenshot_async(screenshot_id: str, image_url: str, base64_content: str, agent=None, db: Session = None):
+async def process_screenshot_async(screenshot_id: str, image_url: str, base64_content: str, ocr_agent=None, db: Session = None):
     try:
         # Use provided db session or create a new one
         close_db = False
@@ -111,10 +111,39 @@ async def process_screenshot_async(screenshot_id: str, image_url: str, base64_co
             return
 
         # Use provided agent or default
-        if agent is None:
-            agent = ai_agent
+        if ocr_agent is None:
+            ocr_agent = ai_agent
 
-        result = agent.process_screenshot(base64_content)
+        # First, process with the original agent (Gemini) to get OCR and basic info
+        result = ocr_agent.process_screenshot(base64_content)
+
+        # Then, use Claude agent to find the original source
+        from app.agents.claude_agent import ClaudeAgent
+        claude_agent = ClaudeAgent()
+
+        screenshot_info = {
+            "title": result["title"],
+            "description": result["description"],
+            "tags": result["tags"],
+            "markdown": result["markdown"]
+        }
+
+        # Find the original source
+        source_result = await claude_agent.find_screenshot_source(screenshot_info)
+
+        # Add source information to the results
+        result["original_source"] = source_result.get("original_source")
+        result["source_confidence"] = source_result.get("confidence")
+        result["source_verified"] = source_result.get("verification")
+
+        # Update markdown with source information if found
+        if source_result.get("original_source"):
+            result["markdown"] += f"\n\n## Original Source\n"
+            result["markdown"] += f"- URL: {source_result['original_source']}\n"
+            result["markdown"] += f"- Confidence: {source_result['confidence']}\n"
+            result["markdown"] += f"- Verified: {'Yes' if source_result['verification'] else 'No'}\n"
+            if source_result.get("details"):
+                result["markdown"] += f"\n### Source Details\n{source_result['details']}\n"
 
         # Generate embedding using dedicated embedding service
         embedding = embedding_service.generate_embedding_from_screenshot_data(
@@ -132,6 +161,9 @@ async def process_screenshot_async(screenshot_id: str, image_url: str, base64_co
         screenshot.ai_tags = json.dumps(result["tags"])
         screenshot.markdown_content = result["markdown"]
         screenshot.vector_id = vector_id
+
+        # Store original source in a custom field (you may need to add this to the model)
+        # For now, we'll include it in the markdown content
 
         db.commit()
 
@@ -163,7 +195,7 @@ async def get_screenshots(
         if response.image_url:
             response.image_url = storage_service.refresh_signed_url(response.image_url)
         responses.append(response)
-    
+
     return responses
 
 
@@ -185,12 +217,12 @@ async def get_screenshot(
         )
 
     response = ScreenshotResponse.from_db(screenshot)
-    
+
     # Refresh the signed URL if it exists
     if response.image_url:
         storage_service = StorageService()
         response.image_url = storage_service.refresh_signed_url(response.image_url)
-    
+
     return response
 
 
