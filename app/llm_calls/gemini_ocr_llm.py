@@ -126,7 +126,7 @@ class GeminiOCRLLM:
 
             config = types.GenerateContentConfig(
                 temperature=0.1,  # Lower temperature for more accurate extraction
-                max_output_tokens=4096,  # Increased for detailed output
+                max_output_tokens=20000,  # Increased for detailed output
                 response_mime_type="application/json",
                 response_schema=OUTPUT_SCHEMA
             )
