@@ -8,10 +8,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
 from sqlalchemy.orm import Session
 
-from app.workflows import ai_agent
-from app.workflows.openai_agent import OpenAIAgent
-from app.workflows.gemini_agent import GeminiAgent
-from app.workflows.openrouter_agent import OpenRouterAgent
+from app.llm_calls import ai_agent
+from app.llm_calls.gemini_ocr_llm import GeminiOCRLLM
 from app.core.auth import get_current_user_id
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -67,13 +65,8 @@ async def upload_screenshot(
     db.commit()
     db.refresh(screenshot)
 
-    # Select AI agent based on AGENT_NAME configuration
-    if settings.AGENT_NAME == "gemini":
-        selected_agent = GeminiAgent()
-    elif settings.AGENT_NAME == "openrouter":
-        selected_agent = OpenRouterAgent()
-    else:
-        selected_agent = OpenAIAgent()  # Default to OpenAI
+    # Use Gemini OCR LLM for processing
+    selected_agent = GeminiOCRLLM()
 
     # Comment out executor.submit and use await instead
     # executor.submit(
@@ -125,12 +118,16 @@ async def process_screenshot_async(screenshot_id: str, image_url: str, base64_co
         # Claude will return markdown output directly
         markdown_output = await claude_agent.find_screenshot_source(result)
 
-        # Extract title from the result (use application name as title)
-        title = result.get('application', 'Screenshot')
-        
+        # Use Structure Output LLM to extract title and quick_link from markdown
+        from app.llm_calls import structure_output_llm
+        structured_data = structure_output_llm.extract_structured_data(markdown_output)
+
+        # Extract title from structured data
+        title = structured_data.get('title', result.get('application', 'Screenshot'))
+
         # Extract description from the result
         description = result.get('general_description', '')
-        
+
         # Extract tags from parts data
         tags = []
         for part in result.get('parts', []):
@@ -138,10 +135,13 @@ async def process_screenshot_async(screenshot_id: str, image_url: str, base64_co
                 key = content.get('key', '').lower()
                 if 'tag' in key or 'category' in key or 'type' in key:
                     tags.append(content.get('value', ''))
-        
+
         # If no tags found, use application as a tag
         if not tags and result.get('application'):
             tags = [result['application']]
+
+        # Add quick_link info to the markdown
+        quick_link = structured_data.get('quick_link', {})
 
         # Generate embedding using dedicated embedding service
         embedding = embedding_service.generate_embedding_from_screenshot_data(
@@ -159,6 +159,7 @@ async def process_screenshot_async(screenshot_id: str, image_url: str, base64_co
         screenshot.ai_tags = json.dumps(tags)
         screenshot.markdown_content = markdown_output
         screenshot.vector_id = vector_id
+        screenshot.quick_link = quick_link 
 
         db.commit()
 

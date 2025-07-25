@@ -1,12 +1,17 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, TypedDict, Literal
 import uuid
 
-from sqlalchemy import String, Text, Float, text
+from sqlalchemy import String, Text, Float, text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.db.base import Base
+
+
+class QuickLinkDict(TypedDict):
+    type: Literal["direct", "search_str"]
+    content: str
 
 
 class Screenshot(Base):
@@ -31,6 +36,7 @@ class Screenshot(Base):
     user_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     markdown_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     vector_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Milvus vector ID
+    quick_link: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # QuickLinkDict as JSON
     
     # Timestamps with timezone-aware defaults
     created_at: Mapped[datetime] = mapped_column(
