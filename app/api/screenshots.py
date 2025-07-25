@@ -121,49 +121,44 @@ async def process_screenshot_async(screenshot_id: str, image_url: str, base64_co
         from app.agents.claude_agent import ClaudeAgent
         claude_agent = ClaudeAgent()
 
-        screenshot_info = {
-            "title": result["title"],
-            "description": result["description"],
-            "tags": result["tags"],
-            "markdown": result["markdown"]
-        }
+        # Pass the complete JSON result from Gemini to Claude
+        # Claude will return markdown output directly
+        markdown_output = await claude_agent.find_screenshot_source(result)
 
-        # Find the original source
-        source_result = await claude_agent.find_screenshot_source(screenshot_info)
-
-        # Add source information to the results
-        result["original_source"] = source_result.get("original_source")
-        result["source_confidence"] = source_result.get("confidence")
-        result["source_verified"] = source_result.get("verification")
-
-        # Update markdown with source information if found
-        if source_result.get("original_source"):
-            result["markdown"] += f"\n\n## Original Source\n"
-            result["markdown"] += f"- URL: {source_result['original_source']}\n"
-            result["markdown"] += f"- Confidence: {source_result['confidence']}\n"
-            result["markdown"] += f"- Verified: {'Yes' if source_result['verification'] else 'No'}\n"
-            if source_result.get("details"):
-                result["markdown"] += f"\n### Source Details\n{source_result['details']}\n"
+        # Extract title from the result (use application name as title)
+        title = result.get('application', 'Screenshot')
+        
+        # Extract description from the result
+        description = result.get('general_description', '')
+        
+        # Extract tags from parts data
+        tags = []
+        for part in result.get('parts', []):
+            for content in part.get('contents', []):
+                key = content.get('key', '').lower()
+                if 'tag' in key or 'category' in key or 'type' in key:
+                    tags.append(content.get('value', ''))
+        
+        # If no tags found, use application as a tag
+        if not tags and result.get('application'):
+            tags = [result['application']]
 
         # Generate embedding using dedicated embedding service
         embedding = embedding_service.generate_embedding_from_screenshot_data(
-            title=result["title"],
-            description=result["description"],
-            tags=result["tags"],
-            markdown=result["markdown"]
+            title=title,
+            description=description,
+            tags=tags,
+            markdown=markdown_output
         )
 
         vector_id = vector_service.add_screenshot(screenshot_id, embedding, str(screenshot.user_id))
 
         # Update screenshot with AI results
-        screenshot.ai_title = result["title"]
-        screenshot.ai_description = result["description"]
-        screenshot.ai_tags = json.dumps(result["tags"])
-        screenshot.markdown_content = result["markdown"]
+        screenshot.ai_title = title
+        screenshot.ai_description = description
+        screenshot.ai_tags = json.dumps(tags)
+        screenshot.markdown_content = markdown_output
         screenshot.vector_id = vector_id
-
-        # Store original source in a custom field (you may need to add this to the model)
-        # For now, we'll include it in the markdown content
 
         db.commit()
 

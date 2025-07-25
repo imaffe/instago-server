@@ -90,23 +90,32 @@ class GeminiAgent:
             # Decode base64 image
             image_bytes = base64.b64decode(base64_image)
 
-            prompt = """Analyze this screenshot in great detail and provide a comprehensive analysis.
+            prompt = """Analyze this screenshot and extract all information in a structured format.
 
-            You must return a well-formatted JSON object with detailed information about everything visible in the screenshot.
+            Your response must follow this structure:
 
-            Focus on:
-            1. Extract ALL visible text content verbatim (including UI elements, menus, buttons, etc.)
-            2. Identify the application, website, or system shown
-            3. Describe the visual layout and UI components in detail
-            4. Note any code, commands, or technical content
-            5. Identify any usernames, timestamps, or metadata
-            6. Describe colors, themes, and visual styling
-            7. Extract any URLs, file paths, or references
-            8. Note the context and purpose of what's being shown
-            9. Identify any data, tables, or structured information
-            10. Capture any error messages, notifications, or alerts
+            1. **general_description**: Provide a comprehensive overview of everything visible in the screenshot. Include the overall context, purpose, and what the user is looking at.
 
-            Be extremely thorough and detailed in your analysis. Do not summarize - provide complete information.
+            2. **application**: Identify the primary application, website, or system shown in the screenshot. Be specific (e.g., "Visual Studio Code", "Twitter", "Terminal", "Google Chrome - GitHub").
+
+            3. **parts**: Break down the screenshot into distinct sections or areas. For each part:
+               - **part_desc**: Describe what this section contains
+               - **type**: Whether it's primarily 'text' or 'image' content
+               - **location**: Where it appears (e.g., "top navigation bar", "main content area", "sidebar")
+               - **contents**: Extract ALL text/information as key-value pairs
+                 - For text content: use descriptive keys like "heading", "paragraph", "button_text", "menu_item", etc.
+                 - For code: use "code_snippet", "function_name", "variable", etc.
+                 - For metadata: use "author", "timestamp", "username", etc.
+                 - Extract everything verbatim - do not summarize or paraphrase
+
+            Important guidelines:
+            - Extract ALL major visible text, including UI elements, menus, buttons, labels.
+            - Pay special attention to product name, books, and items that people most likely want to bookmark and save for later.
+            - Note usernames, timestamps, URLs, file paths, and any metadata
+            - Be thorough - every piece of text should be captured in the appropriate part.
+            - Group related content logically into parts (e.g., navigation bar, main content, sidebar)
+            - Describe relative locations of each parts.
+            - Provide a concise description of what each part does.
             """
 
             config = types.GenerateContentConfig(
@@ -131,12 +140,8 @@ class GeminiAgent:
             # Parse the JSON response
             result = json.loads(response.text)
 
-            return {
-                "title": result.get("title", "Untitled Screenshot"),
-                "description": result.get("description", ""),
-                "tags": result.get("tags", []),
-                "markdown": result.get("markdown", "")
-            }
+            # Return the full JSON result from Gemini
+            return result
 
         except json.JSONDecodeError as e:
             logger.error(f"L: {e}")

@@ -6,11 +6,9 @@ from typing import Optional, Dict, List
 
 from agents import Agent, Runner
 from agents.extensions.models.litellm_model import LitellmModel
-from agents import WebSearchTool
 
 from app.core.logging import get_logger
 from app.agents.tools import view_webpage, google_search
-from app.agents.models import ScreenshotSourceAnalysis, ScreenshotAutomationAnalysis
 
 logger = get_logger(__name__)
 
@@ -71,9 +69,15 @@ PART 3 - PLAN AUTOMATION:
 """
 
 
-SCREENSHOT_AUTOMATION_USER_INSTRUCTIONS = """
+SCREENSHOT_AUTOMATION_USER_INSTRUCTIONS = """Analyze this screenshot data and find useful information:
 
-"""
+Application: {application}
+General Description: {general_description}
+
+Parts:
+{parts_formatted}
+
+Based on this structured information, research and find relevant sources, references, or additional information that would be useful for the user."""
 
 
 class ClaudeAgent:
@@ -91,16 +95,36 @@ class ClaudeAgent:
             logger.info("Anthropic API key found")
             self.initialized = True
 
-    async def find_screenshot_source(self, screenshot_info: dict) -> dict:
+    def _format_parts(self, parts: List[Dict]) -> str:
+        """Format the parts array into a readable string"""
+        formatted_parts = []
+        for i, part in enumerate(parts, 1):
+            part_text = f"\n{i}. {part.get('part_desc', 'Unknown part')}"
+            part_text += f"\n   Type: {part.get('type', 'unknown')}"
+            part_text += f"\n   Location: {part.get('location', 'unknown')}"
+
+            contents = part.get('contents', [])
+            if contents:
+                part_text += "\n   Contents:"
+                for content in contents:
+                    key = content.get('key', 'unknown')
+                    value = content.get('value', '')
+                    # Truncate very long values for readability
+                    if len(value) > 200:
+                        value = value[:200] + "..."
+                    part_text += f"\n     - {key}: {value}"
+
+            formatted_parts.append(part_text)
+
+        return "\n".join(formatted_parts)
+
+    async def find_screenshot_source(self, screenshot_info: dict) -> str:
         logger.info("Starting screenshot source finding")
-        logger.info(f"Screenshot info - Title: {screenshot_info.get('title', 'Unknown')}")
-        logger.info(f"Screenshot info - Tags: {screenshot_info.get('tags', [])}")
+        logger.info(f"Screenshot info - Application: {screenshot_info.get('application', 'Unknown')}")
+        logger.info(f"Screenshot info - Parts count: {len(screenshot_info.get('parts', []))}")
 
         try:
             logger.info("Creating unified analyzer and source finder agent with structured output")
-
-            # Create instance of WebSearchTool
-            web_search_tool = WebSearchTool()
 
             analyzer_finder = Agent(
                 name="Screenshot Analyzer and Source Finder",
@@ -109,87 +133,34 @@ class ClaudeAgent:
                     model="anthropic/claude-sonnet-4-20250514",
                     api_key=self.api_key
                 ) if self.api_key else "litellm/anthropic/claude-sonnet-4-20250514",
-                tools=[google_search, view_webpage],  # Using WebSearchTool instead of google_search
-                output_type=ScreenshotSourceAnalysis
+                tools=[google_search, view_webpage]
             )
+
+            # Format the parts array for the prompt
+            parts_formatted = self._format_parts(screenshot_info.get('parts', []))
 
             # Construct the search prompt
             prompt = SCREENSHOT_AUTOMATION_USER_INSTRUCTIONS.format(
-                title=screenshot_info.get('title', 'Unknown'),
-                description=screenshot_info.get('description', ''),
-                tags=', '.join(screenshot_info.get('tags', [])),
-                markdown=screenshot_info.get('markdown', '')
+                application=screenshot_info.get('application', 'Unknown'),
+                general_description=screenshot_info.get('general_description', ''),
+                parts_formatted=parts_formatted
             )
 
             logger.info(f"Running analyzer-finder with prompt length: {len(prompt)}")
             # Run the unified analyzer and source finder
             result = await Runner.run(analyzer_finder, prompt)
 
-            # Get structured output directly from agent
-            try:
-                output = result.final_output_as(ScreenshotSourceAnalysis)
-                result_dict = {
-                    "original_source": output.original_source,
-                    "confidence": output.confidence,
-                    "verification": output.verification,
-                    "details": output.reasoning,
-                    "analysis_summary": output.analysis_summary,
-                    "key_entities": output.key_entities,
-                    "content_type": output.content_type,
-                    "alternative_sources": output.alternative_sources
-                }
-                logger.info(f"Got structured output - URL: {output.original_source}, Confidence: {output.confidence}, Type: {output.content_type}")
-            except Exception as parse_error:
-                # Fallback: try to parse JSON from text response
-                logger.warning(f"Could not get structured output: {parse_error}, trying JSON parse")
-                import json
-                try:
-                    response_text = result.final_output
-                    # Look for JSON in the response
-                    json_start = response_text.find('{')
-                    json_end = response_text.rfind('}') + 1
-                    if json_start >= 0 and json_end > json_start:
-                        json_str = response_text[json_start:json_end]
-                        parsed = json.loads(json_str)
-                        result_dict = {
-                            "original_source": parsed.get("original_source"),
-                            "confidence": parsed.get("confidence", "low"),
-                            "verification": parsed.get("verification", False),
-                            "details": parsed.get("reasoning", response_text),
-                            "analysis_summary": parsed.get("analysis_summary", ""),
-                            "key_entities": parsed.get("key_entities", []),
-                            "content_type": parsed.get("content_type", "other"),
-                            "alternative_sources": parsed.get("alternative_sources", [])
-                        }
-                    else:
-                        raise ValueError("No JSON found in response")
-                except Exception as json_error:
-                    logger.error(f"JSON parse failed: {json_error}")
-                    # Last resort: return the raw response
-                    result_dict = {
-                        "original_source": None,
-                        "confidence": "low",
-                        "verification": False,
-                        "details": result.final_output,
-                        "analysis_summary": "",
-                        "key_entities": [],
-                        "content_type": "other",
-                        "alternative_sources": []
-                    }
-
-            logger.info(f"Returning source result - URL: {result_dict['original_source']}, Confidence: {result_dict['confidence']}, Verified: {result_dict['verification']}")
-            return result_dict
+            # Get the markdown output directly
+            markdown_output = result.final_output
+            logger.info(f"Got markdown output with length: {len(markdown_output)}")
+            
+            return markdown_output
 
         except Exception as e:
             logger.exception("Error finding screenshot source")
-            return {
-                "original_source": None,
-                "confidence": "error",
-                "verification": False,
-                "details": f"Error: {str(e)}"
-            }
+            return f"# Error\n\nFailed to analyze screenshot: {str(e)}"
 
-    def find_screenshot_source_sync(self, screenshot_info: dict) -> dict:
+    def find_screenshot_source_sync(self, screenshot_info: dict) -> str:
         """
         Synchronous version of find_screenshot_source.
         """
