@@ -2,7 +2,7 @@
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 python-multipart==0.0.12
-pydantic==2.9.2
+pydantic==2.11.7
 pydantic-settings==2.6.0
 
 # Database
@@ -22,12 +22,14 @@ passlib[bcrypt]==1.7.4
 google-cloud-storage==2.18.2
 
 # AI/ML
-openai==1.54.4
+openai-agents[litellm]==0.2.3
 pymilvus==2.4.8
 numpy==1.26.4
 pillow==10.4.0
 google-cloud-aiplatform==1.105.0
 google-auth==2.35.0
+anthropic==0.59.0
+beautifulsoup4==4.12.3
 
 # Utilities
 python-dotenv==1.0.1
