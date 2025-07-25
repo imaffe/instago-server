@@ -2,6 +2,7 @@ from typing import Optional, Dict, List, Any
 import requests
 from jose import jwt, jwk
 from jose.utils import base64url_decode
+from jose.exceptions import ExpiredSignatureError, JWTError
 import json
 
 from fastapi import Depends, HTTPException, status, Request
@@ -110,7 +111,7 @@ class SupabaseAuthService:
 
             return payload
 
-        except jwt.exceptions.ExpiredSignatureError:
+        except ExpiredSignatureError:
             logger.error("Token has expired")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

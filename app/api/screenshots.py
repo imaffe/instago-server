@@ -1,6 +1,6 @@
 import json
 import base64
-# from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
@@ -21,7 +21,7 @@ from app.services.vector_store import vector_service
 from app.services.embedding import embedding_service
 
 router = APIRouter()
-# executor = ThreadPoolExecutor(max_workers=5)
+executor = ThreadPoolExecutor(max_workers=5)
 logger = get_logger(__name__)
 
 
@@ -68,35 +68,23 @@ async def upload_screenshot(
     # Use Gemini OCR LLM for processing
     selected_agent = GeminiOCRLLM()
 
-    # Comment out executor.submit and use await instead
-    # executor.submit(
-    #     process_screenshot_async,
-    #     str(screenshot.id),
-    #     image_url,
-    #     screenshot_data.screenshotFileBlob,  # Pass base64 directly
-    #     selected_agent
-    # )
-
-    # Process screenshot synchronously in the same pipeline
-    await process_screenshot_async(
+    # Submit to executor for async processing
+    executor.submit(
+        process_screenshot_async,
         str(screenshot.id),
         image_url,
         screenshot_data.screenshotFileBlob,  # Pass base64 directly
-        selected_agent,
-        db
+        selected_agent
     )
 
     return ScreenshotResponse.from_db(screenshot)
 
 
-async def process_screenshot_async(screenshot_id: str, image_url: str, base64_content: str, ocr_agent=None, db: Session = None):
+def process_screenshot_async(screenshot_id: str, image_url: str, base64_content: str, ocr_agent=None):
     try:
-        # Use provided db session or create a new one
-        close_db = False
-        if db is None:
-            from app.db.base import SessionLocal
-            db = SessionLocal()
-            close_db = True
+        # Create a new db session for async execution
+        from app.db.base import SessionLocal
+        db = SessionLocal()
 
         # Get screenshot to access user_id
         screenshot = db.query(Screenshot).filter(Screenshot.id == screenshot_id).first()
@@ -116,7 +104,7 @@ async def process_screenshot_async(screenshot_id: str, image_url: str, base64_co
 
         # Pass the complete JSON result from Gemini to Claude
         # Claude will return markdown output directly
-        markdown_output = await claude_agent.find_screenshot_source(result)
+        markdown_output = claude_agent.find_screenshot_source_sync(result)
 
         # Use Structure Output LLM to extract title and quick_link from markdown
         from app.llm_calls import structure_output_llm
@@ -165,8 +153,7 @@ async def process_screenshot_async(screenshot_id: str, image_url: str, base64_co
     except Exception as e:
         print(f"Error processing screenshot {screenshot_id}: {e}")
     finally:
-        if close_db:
-            db.close()
+        db.close()
 
 
 @router.get("/screenshot-note", response_model=List[ScreenshotResponse])
