@@ -25,6 +25,7 @@ class ScreenshotResponse(ScreenshotBase):
     id: UUID
     user_id: UUID
     image_url: str
+    process_status: str = "pending"
     thumbnail_url: Optional[str] = None
     ai_title: Optional[str] = None
     ai_description: Optional[str] = None
@@ -56,6 +57,7 @@ class ScreenshotResponse(ScreenshotBase):
             id=db_screenshot.id,
             user_id=db_screenshot.user_id,
             image_url=db_screenshot.image_url,
+            process_status=db_screenshot.process_status,
             thumbnail_url=db_screenshot.thumbnail_url,
             ai_title=db_screenshot.ai_title,
             ai_description=db_screenshot.ai_description,

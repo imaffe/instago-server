@@ -8,7 +8,6 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
 from sqlalchemy.orm import Session
 
-from app.llm_calls import ai_agent
 from app.llm_calls.gemini_ocr_llm import GeminiOCRLLM
 from app.core.auth import get_current_user_id
 from app.core.config import settings
@@ -25,13 +24,13 @@ executor = ThreadPoolExecutor(max_workers=5)
 logger = get_logger(__name__)
 
 
-@router.post("/screenshot", response_model=ScreenshotResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/screenshot", status_code=status.HTTP_200_OK)
 async def upload_screenshot(
     screenshot_data: ScreenshotCreate,
     current_user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    # Decode base64 image
+    # Decode base64 image to validate it
     try:
         content = base64.b64decode(screenshot_data.screenshotFileBlob)
     except Exception as e:
@@ -40,63 +39,65 @@ async def upload_screenshot(
             detail="Invalid base64 image data"
         )
 
-    # Default to PNG if not specified
-    content_type = "image/png"
-
-    image_url, thumbnail_url, metadata = await storage_service.upload_screenshot(
-        content, current_user_id, content_type
-    )
-
-    # Convert Unix timestamp to datetime
-    screenshot_time = datetime.fromtimestamp(screenshot_data.screenshotTimestamp, tz=timezone.utc)
-
-    screenshot = Screenshot(
-        user_id=current_user_id,
-        image_url=image_url,
-        thumbnail_url=thumbnail_url,
-        width=metadata["width"],
-        height=metadata["height"],
-        file_size=metadata["file_size"],
-        user_note=f"{screenshot_data.screenshotAppName}: {screenshot_data.screenshotTags}",
-        created_at=screenshot_time  # Use the timestamp from client
-    )
-
-    db.add(screenshot)
-    db.commit()
-    db.refresh(screenshot)
-
-    # Use Gemini OCR LLM for processing
-    selected_agent = GeminiOCRLLM()
-
     # Submit to executor for async processing
     executor.submit(
         process_screenshot_async,
-        str(screenshot.id),
-        image_url,
-        screenshot_data.screenshotFileBlob,  # Pass base64 directly
-        selected_agent
+        current_user_id,
+        screenshot_data
     )
 
-    return ScreenshotResponse.from_db(screenshot)
+    # Return immediately with 200 OK
+    return {"status": "accepted"}
 
 
-def process_screenshot_async(screenshot_id: str, image_url: str, base64_content: str, ocr_agent=None):
+def process_screenshot_async(user_id: str, screenshot_data: ScreenshotCreate):
     try:
         # Create a new db session for async execution
         from app.db.base import SessionLocal
         db = SessionLocal()
 
-        # Get screenshot to access user_id
-        screenshot = db.query(Screenshot).filter(Screenshot.id == screenshot_id).first()
-        if not screenshot:
-            return
+        # Decode base64 content
+        content = base64.b64decode(screenshot_data.screenshotFileBlob)
+        content_type = "image/png"
 
-        # Use provided agent or default
-        if ocr_agent is None:
-            ocr_agent = ai_agent
+        # Use asyncio to run the async upload function
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        # Upload to storage and get URLs
+        image_url, thumbnail_url, metadata = loop.run_until_complete(
+            storage_service.upload_screenshot(content, user_id, content_type)
+        )
+
+        # Convert Unix timestamp to datetime
+        screenshot_time = datetime.fromtimestamp(screenshot_data.screenshotTimestamp, tz=timezone.utc)
+
+        # Create screenshot record
+        screenshot = Screenshot(
+            user_id=user_id,
+            image_url=image_url,
+            thumbnail_url=thumbnail_url,
+            width=metadata["width"],
+            height=metadata["height"],
+            file_size=metadata["file_size"],
+            user_note=f"{screenshot_data.screenshotAppName}: {screenshot_data.screenshotTags}",
+            created_at=screenshot_time,
+            process_status="pending"
+        )
+
+        db.add(screenshot)
+        db.commit()
+        db.refresh(screenshot)
+
+        screenshot_id = str(screenshot.id)
+        logger.info(f"Created screenshot record {screenshot_id} for user {user_id}")
+
+        # Use Gemini OCR LLM for processing
+        ocr_agent = GeminiOCRLLM()
 
         # First, process with the original agent (Gemini) to get OCR and basic info
-        result = ocr_agent.process_screenshot(base64_content)
+        result = ocr_agent.process_screenshot(screenshot_data.screenshotFileBlob)
         logger.info(f"OCR agent result: {json.dumps(result, indent=2)}")
 
         # Then, use Claude agent to find the original source
@@ -140,7 +141,7 @@ def process_screenshot_async(screenshot_id: str, image_url: str, base64_content:
             markdown=markdown_output
         )
 
-        vector_id = vector_service.add_screenshot(screenshot_id, embedding, str(screenshot.user_id))
+        vector_id = vector_service.add_screenshot(screenshot_id, embedding, user_id)
 
         # Update screenshot with AI results
         screenshot.ai_title = title
@@ -149,10 +150,13 @@ def process_screenshot_async(screenshot_id: str, image_url: str, base64_content:
         screenshot.markdown_content = markdown_output
         screenshot.vector_id = vector_id
         screenshot.quick_link = quick_link # Store as JSON
+        screenshot.process_status = "processed"
         db.commit()
 
+        logger.info(f"Successfully processed screenshot {screenshot_id}")
+
     except Exception as e:
-        print(f"Error processing screenshot {screenshot_id}: {e}")
+        logger.exception(f"Error processing screenshot: {e}")
     finally:
         db.close()
 
