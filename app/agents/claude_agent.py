@@ -8,7 +8,7 @@ from agents import Agent, Runner, trace
 from agents.extensions.models.litellm_model import LitellmModel
 
 from app.core.logging import get_logger
-from app.agents.tools import view_webpage, google_search, think_and_plan
+from app.agents.tools import view_webpage, google_search, think_and_plan, think_with_k2
 
 logger = get_logger(__name__)
 

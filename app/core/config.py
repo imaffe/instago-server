@@ -51,6 +51,14 @@ class Settings(BaseSettings):
 
     # Agent selection - "openai", "gemini", or "openrouter"
     AGENT_NAME: str = "openai"
+    
+    # Moonshot Kimi Configuration
+    MOONSHOT_API_KEY: Optional[str] = None
+    MOONSHOT_BASE_URL: str = "https://api.moonshot.cn/v1"
+    MOONSHOT_MODEL: str = "kimi-k2-0711-preview"
+    
+    # Anthropic Claude Configuration
+    ANTHROPIC_API_KEY: Optional[str] = None
 
     BACKEND_CORS_ORIGINS: Optional[List[AnyHttpUrl]] = []
 
