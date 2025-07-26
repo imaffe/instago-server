@@ -50,7 +50,7 @@ if [ -f .env ]; then
             SUPABASE_URL|SUPABASE_ANON_KEY|SUPABASE_SERVICE_KEY|SUPABASE_JWT_SECRET|\
             OPENAI_API_KEY|ANTHROPIC_API_KEY|GOOGLE_CUSTOM_SEARCH_API_KEY|\
             GOOGLE_CUSTOM_SEARCH_ENGINE_ID|GCS_BUCKET_NAME|MILVUS_HOST|DATABASE_URL|\
-            MILVUS_TOKEN|OPENROUTER_API_KEY|VERTEX_AI_PROJECT)
+            MILVUS_TOKEN|OPENROUTER_API_KEY|VERTEX_AI_PROJECT|MOONSHOT_API_KEY)
                 create_or_update_secret "$secret_name" "$value"
                 ;;
         esac
@@ -72,6 +72,7 @@ else
     echo "  - milvus-token"
     echo "  - openrouter-api-key (optional)"
     echo "  - vertex-ai-project (optional)"
+    echo "  - moonshot-api-key (optional)"
 fi
 
 # Grant Cloud Run service account access to secrets
