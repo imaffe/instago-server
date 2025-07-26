@@ -8,16 +8,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Query
 from sqlalchemy.orm import Session
 
-from app.llm_calls.gemini_ocr_llm import GeminiOCRLLM
 from app.core.auth import get_current_user_id
-from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.base import get_db
 from app.models import Screenshot
 from app.models.schemas import ScreenshotResponse, ScreenshotUpdate, ScreenshotCreate
-from app.services.storage import storage_service, StorageService
-from app.services.vector_store import vector_service
-from app.services.embedding import embedding_service
+from app.services.storage import StorageService
+from app.services.screenshot import screenshot_processing_service
 
 router = APIRouter()
 executor = ThreadPoolExecutor(max_workers=5)
@@ -41,7 +38,7 @@ async def upload_screenshot(
 
     # Submit to executor for async processing
     executor.submit(
-        process_screenshot_async,
+        screenshot_processing_service.process_screenshot_async,
         current_user_id,
         screenshot_data
     )
@@ -49,116 +46,6 @@ async def upload_screenshot(
     # Return immediately with 200 OK
     return {"status": "accepted"}
 
-
-def process_screenshot_async(user_id: str, screenshot_data: ScreenshotCreate):
-    try:
-        # Create a new db session for async execution
-        from app.db.base import SessionLocal
-        db = SessionLocal()
-
-        # Decode base64 content
-        content = base64.b64decode(screenshot_data.screenshotFileBlob)
-        content_type = "image/png"
-
-        # Use asyncio to run the async upload function
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        # Upload to storage and get URLs
-        image_url, thumbnail_url, metadata = loop.run_until_complete(
-            storage_service.upload_screenshot(content, user_id, content_type)
-        )
-
-        # Convert Unix timestamp to datetime
-        screenshot_time = datetime.fromtimestamp(screenshot_data.screenshotTimestamp, tz=timezone.utc)
-
-        # Create screenshot record
-        screenshot = Screenshot(
-            user_id=user_id,
-            image_url=image_url,
-            thumbnail_url=thumbnail_url,
-            width=metadata["width"],
-            height=metadata["height"],
-            file_size=metadata["file_size"],
-            user_note=f"{screenshot_data.screenshotAppName}: {screenshot_data.screenshotTags}",
-            created_at=screenshot_time,
-            process_status="pending"
-        )
-
-        db.add(screenshot)
-        db.commit()
-        db.refresh(screenshot)
-
-        screenshot_id = str(screenshot.id)
-        logger.info(f"Created screenshot record {screenshot_id} for user {user_id}")
-
-        # Use Gemini OCR LLM for processing
-        ocr_agent = GeminiOCRLLM()
-
-        # First, process with the original agent (Gemini) to get OCR and basic info
-        result = ocr_agent.process_screenshot(screenshot_data.screenshotFileBlob)
-        logger.info(f"OCR agent result: {json.dumps(result, indent=2)}")
-
-        # Then, use Claude agent to find the original source
-        from app.agents.claude_agent import ClaudeAgent
-        claude_agent = ClaudeAgent()
-
-        # Pass the complete JSON result from Gemini to Claude
-        # Claude will return markdown output directly
-        markdown_output = claude_agent.find_screenshot_source_sync(result)
-
-        # Use Structure Output LLM to extract title and quick_link from markdown
-        from app.llm_calls import structure_output_llm
-        structured_data = structure_output_llm.extract_structured_data(markdown_output)
-
-        # Extract title from structured data
-        title = structured_data.get('title', result.get('application', 'Screenshot'))
-
-        # Extract description from the result
-        description = result.get('general_description', '')
-
-        # Extract tags from parts data
-        tags = []
-        for part in result.get('parts', []):
-            for content in part.get('contents', []):
-                key = content.get('key', '').lower()
-                if 'tag' in key or 'category' in key or 'type' in key:
-                    tags.append(content.get('value', ''))
-
-        # If no tags found, use application as a tag
-        if not tags and result.get('application'):
-            tags = [result['application']]
-
-        # Add quick_link info to the markdown
-        quick_link = structured_data.get('quick_link', {})
-
-        # Generate embedding using dedicated embedding service
-        embedding = embedding_service.generate_embedding_from_screenshot_data(
-            title=title,
-            description=description,
-            tags=tags,
-            markdown=markdown_output
-        )
-
-        vector_id = vector_service.add_screenshot(screenshot_id, embedding, user_id)
-
-        # Update screenshot with AI results
-        screenshot.ai_title = title
-        screenshot.ai_description = description
-        screenshot.ai_tags = json.dumps(tags)
-        screenshot.markdown_content = markdown_output
-        screenshot.vector_id = vector_id
-        screenshot.quick_link = quick_link # Store as JSON
-        screenshot.process_status = "processed"
-        db.commit()
-
-        logger.info(f"Successfully processed screenshot {screenshot_id}")
-
-    except Exception as e:
-        logger.exception(f"Error processing screenshot: {e}")
-    finally:
-        db.close()
 
 
 @router.get("/screenshot-note", response_model=List[ScreenshotResponse])

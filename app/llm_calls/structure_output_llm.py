@@ -22,6 +22,7 @@ class QuickLink(BaseModel):
 
 
 class StructuredOutput(BaseModel):
+    error: bool = Field(default=False, description="Indicates if there was an error in processing")
     title: str = Field(
         description="A concise, descriptive title for the screenshot content"
     )
@@ -35,10 +36,18 @@ STRUCTURE_OUTPUT_PROMPT = """You are an expert at extracting structured informat
 
 Given the following markdown content about a screenshot, extract:
 
-1. **title**: A concise, descriptive title that captures the main subject of the screenshot
-2. **quick_link**: The most relevant link to access or find the content
+1. **error**: Set to true if the markdown content indicates a major error occurred during processing
+   - Look for phrases like "Error", "Failed to", "Could not", "Unable to", "Exception", "Not found"
+   - Check if the content suggests the AI couldn't complete its task properly
+   - Even if the markdown is valid, if it describes an error scenario, set error=true
+
+2. **title**: A concise, descriptive title that captures the main subject of the screenshot
+   - If error=true, still provide a meaningful title describing what was attempted
+
+3. **quick_link**: The most relevant link to access or find the content
    - If a direct URL is found in the content, use type="direct" and provide the URL
    - If no direct URL exists but there's enough information to search for it, use type="search_str" and provide a search query
+   - If error=true, still try to provide a relevant search query
 
 The quick_link should prioritize:
 - Original source URLs
@@ -96,7 +105,7 @@ class StructureOutputLLM:
             markdown_content: The markdown string from Claude Agent
 
         Returns:
-            Dictionary with title and quick_link fields
+            Dictionary with error, title and quick_link fields
         """
         if not self.initialized:
             logger.error("Structure Output LLM not initialized")
@@ -124,6 +133,7 @@ class StructureOutputLLM:
             # Convert to dictionary
             if result:
                 return {
+                    "error": result.error,
                     "title": result.title,
                     "quick_link": {
                         "type": result.quick_link.type,
@@ -141,6 +151,7 @@ class StructureOutputLLM:
     def _error_response(self) -> Dict:
         """Return a default error response"""
         return {
+            "error": True,
             "title": "Processing Error",
             "quick_link": {
                 "type": "search_str",
