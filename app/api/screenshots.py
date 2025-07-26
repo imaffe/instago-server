@@ -13,7 +13,8 @@ from app.core.logging import get_logger
 from app.db.base import get_db
 from app.models import Screenshot
 from app.models.schemas import ScreenshotResponse, ScreenshotUpdate, ScreenshotCreate
-from app.services.storage import StorageService
+from app.services.storage import storage_service
+from app.services.vector_store import vector_service
 from app.services.screenshot import screenshot_processing_service
 
 router = APIRouter()
@@ -61,7 +62,6 @@ async def get_screenshots(
     ).order_by(Screenshot.created_at.desc()).offset(skip).limit(limit).all()
 
     # Refresh signed URLs for each screenshot
-    storage_service = StorageService()
     responses = []
     for screenshot in screenshots:
         response = ScreenshotResponse.from_db(screenshot)
@@ -94,7 +94,6 @@ async def get_screenshot(
 
     # Refresh the signed URL if it exists
     if response.image_url:
-        storage_service = StorageService()
         response.image_url = storage_service.refresh_signed_url(response.image_url)
 
     return response
@@ -147,10 +146,14 @@ async def delete_screenshot(
             detail="Screenshot not found"
         )
 
-    await storage_service.delete_screenshot(screenshot.image_url, screenshot.thumbnail_url)
-
+    # Delete from vector database if vector_id exists
     if screenshot.vector_id:
-        vector_service.delete_screenshot(screenshot.vector_id)
-
+        try:
+            vector_service.delete_screenshot(screenshot.vector_id)
+        except Exception as e:
+            logger.warning(f"Failed to delete from vector store: {e}")
+            # Continue with database deletion even if vector deletion fails
+    
+    # Delete from database
     db.delete(screenshot)
     db.commit()
