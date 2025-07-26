@@ -40,7 +40,7 @@ class ScreenshotResponse(ScreenshotBase):
 
     class Config:
         from_attributes = True
-    
+
     @classmethod
     def from_db(cls, db_screenshot) -> "ScreenshotResponse":
         """Convert database model to Pydantic response model"""
@@ -52,7 +52,7 @@ class ScreenshotResponse(ScreenshotBase):
                 ai_tags = json.loads(db_screenshot.ai_tags)
             except json.JSONDecodeError:
                 ai_tags = []
-        
+
         return cls(
             id=db_screenshot.id,
             user_id=db_screenshot.user_id,
@@ -73,16 +73,36 @@ class ScreenshotResponse(ScreenshotBase):
         )
 
 
+class ScreenshotDTO(BaseModel):
+    """Data Transfer Object for screenshot data used in search/reranking operations"""
+    id: str
+    user_id: str
+    ai_title: str = ""
+    ai_description: str = ""
+    markdown_content: str = ""
+    ai_tags: List[str] = Field(default_factory=list)
+    vector_score: float
+
+
+
 class QueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=500)
-    include_friends: bool = False
     limit: int = Field(default=20, ge=1, le=100)
 
 
 class QueryResult(BaseModel):
     screenshot: ScreenshotResponse
     score: float
-    friend_name: Optional[str] = None
+
+
+class RAGQueryResponse(BaseModel):
+    """Response for RAG-enhanced query"""
+    answer: str = Field(..., description="AI-generated answer based on retrieved screenshots")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score of the answer")
+    sources_used: int = Field(..., ge=0, description="Number of screenshots used to generate answer")
+    model_used: Optional[str] = Field(None, description="Model used for generation")
+    results: List[QueryResult] = Field(..., description="Reranked screenshot results")
+    total_results: int = Field(..., description="Total number of results found")
 
 
 class FriendRequest(BaseModel):
@@ -117,7 +137,6 @@ class QueryHistoryItem(BaseModel):
     id: UUID
     query_text: str
     results_count: int
-    include_friends: bool
     created_at: datetime
 
     class Config:
