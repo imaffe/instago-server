@@ -1,0 +1,152 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: instago-server
+  annotations:
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        # Maximum number of instances
+        run.googleapis.com/execution-environment: gen2
+        autoscaling.knative.dev/maxScale: "10"
+        autoscaling.knative.dev/minScale: "0"
+        # CPU throttling
+        run.googleapis.com/cpu-throttling: "false"
+    spec:
+      containerConcurrency: 100
+      timeoutSeconds: 300
+      serviceAccountName: instago-server@careful-pillar-464706-d1.iam.gserviceaccount.com
+      containers:
+      - image: gcr.io/careful-pillar-464706-d1/instago-server:latest
+        ports:
+        - name: http1
+          containerPort: 8080
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+        env:
+        # Non-sensitive configuration
+        - name: ENVIRONMENT
+          value: production
+        - name: PROJECT_NAME
+          value: "Instago Server"
+        - name: VERSION
+          value: "0.1.0"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: AGENT_NAME
+          value: "gemini"
+        - name: OPENAI_MODEL
+          value: "gpt-4o"
+        - name: GEMINI_MODEL
+          value: "gemini-2.0-flash-exp"
+        - name: OPENROUTER_MODEL
+          value: "qwen/qwen-vl-max"
+        - name: OPENROUTER_SITE_NAME
+          value: "Instago"
+        - name: OPENROUTER_SITE_URL
+          value: "https://instago.app"
+        - name: MILVUS_PORT
+          value: "19530"
+        - name: MILVUS_COLLECTION_NAME
+          value: "screenshots"
+        - name: VERTEX_AI_LOCATION
+          value: "us-central1"
+        - name: GOOGLE_GENAI_USE_VERTEXAI
+          value: "true"
+        - name: GOOGLE_CLOUD_PROJECT
+          value: "careful-pillar-464706-d1"
+        - name: GOOGLE_CLOUD_LOCATION
+          value: "us-central1"
+        - name: SUPABASE_PROJECT_ID
+          value: "ngrsglydelretetvndla"
+        # Secrets from Secret Manager
+        - name: SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: supabase-url
+              key: latest
+        - name: SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              name: supabase-anon-key
+              key: latest
+        - name: SUPABASE_SERVICE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: supabase-service-key
+              key: latest
+        - name: SUPABASE_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: supabase-jwt-secret
+              key: latest
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openai-api-key
+              key: latest
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: anthropic-api-key
+              key: latest
+        - name: GOOGLE_CUSTOM_SEARCH_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: google-custom-search-api-key
+              key: latest
+        - name: GOOGLE_CUSTOM_SEARCH_ENGINE_ID
+          valueFrom:
+            secretKeyRef:
+              name: google-custom-search-engine-id
+              key: latest
+        - name: GCS_BUCKET_NAME
+          valueFrom:
+            secretKeyRef:
+              name: gcs-bucket-name
+              key: latest
+        - name: MILVUS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: milvus-host
+              key: latest
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-url
+              key: latest
+        - name: MILVUS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: milvus-token
+              key: latest
+        - name: OPENROUTER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrouter-api-key
+              key: latest
+        - name: VERTEX_AI_PROJECT
+          valueFrom:
+            secretKeyRef:
+              name: vertex-ai-project
+              key: latest
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/secrets/gcs-key/key.json"
+        volumeMounts:
+        - name: gcs-key
+          mountPath: /secrets/gcs-key
+          readOnly: true
+      volumes:
+      - name: gcs-key
+        secret:
+          secretName: gcs-service-account-key
+          items:
+          - key: latest
+            path: key.json
+  traffic:
+  - percent: 100
+    latestRevision: true
