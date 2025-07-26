@@ -16,18 +16,19 @@ class QuickLinkDict(TypedDict):
 
 class Screenshot(Base):
     __tablename__ = "screenshots"
-    
+
     # Primary key with auto-generated UUID
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), 
-        primary_key=True, 
+        UUID(as_uuid=True),
+        primary_key=True,
         server_default=text("gen_random_uuid()")
     )
-    
+
     # Required fields
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
     image_url: Mapped[str] = mapped_column(Text)
-    
+    process_status: Mapped[str] = mapped_column(Text, default="pending")
+
     # Optional fields
     thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ai_title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -37,7 +38,7 @@ class Screenshot(Base):
     markdown_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     vector_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Milvus vector ID
     quick_link: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # QuickLinkDict as JSON
-    
+
     # Timestamps with timezone-aware defaults
     created_at: Mapped[datetime] = mapped_column(
         default=lambda: datetime.now(timezone.utc)
@@ -46,7 +47,7 @@ class Screenshot(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc)
     )
-    
+
     # Numeric optional fields
     width: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     height: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
