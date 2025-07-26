@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional, TypedDict, Literal
 import uuid
 
-from sqlalchemy import String, Text, Float, text, JSON
+from sqlalchemy import Text, Float, text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -26,16 +26,16 @@ class Screenshot(Base):
     
     # Required fields
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
-    image_url: Mapped[str] = mapped_column(String(500))
+    image_url: Mapped[str] = mapped_column(Text)
     
     # Optional fields
-    thumbnail_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    ai_title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ai_title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ai_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ai_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array stored as text
     user_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     markdown_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    vector_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Milvus vector ID
+    vector_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Milvus vector ID
     quick_link: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # QuickLinkDict as JSON
     
     # Timestamps with timezone-aware defaults

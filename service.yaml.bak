@@ -4,6 +4,7 @@ metadata:
   name: instago-server
   annotations:
     run.googleapis.com/launch-stage: GA
+    run.googleapis.com/ingress: all
 spec:
   template:
     metadata:

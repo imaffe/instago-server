@@ -37,6 +37,14 @@ gcloud run services replace service.yaml \
     --region $REGION \
     --project $PROJECT_ID
 
+# Make the service publicly accessible
+echo "Making service publicly accessible..."
+gcloud run services add-iam-policy-binding $SERVICE_NAME \
+    --member="allUsers" \
+    --role="roles/run.invoker" \
+    --region=$REGION \
+    --project=$PROJECT_ID
+
 echo "Deployment complete!"
 echo "Service URL:"
 gcloud run services describe $SERVICE_NAME --platform managed --region $REGION --format 'value(status.url)' --project $PROJECT_ID
