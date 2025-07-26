@@ -97,6 +97,7 @@ def process_screenshot_async(screenshot_id: str, image_url: str, base64_content:
 
         # First, process with the original agent (Gemini) to get OCR and basic info
         result = ocr_agent.process_screenshot(base64_content)
+        logger.info(f"OCR agent result: {json.dumps(result, indent=2)}")
 
         # Then, use Claude agent to find the original source
         from app.agents.claude_agent import ClaudeAgent
