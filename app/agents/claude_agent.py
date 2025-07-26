@@ -165,8 +165,8 @@ class ClaudeAgent:
 
             # Use trace to capture the entire workflow
             with trace("Screenshot Analysis Workflow") as workflow_trace:
-                # Run the unified analyzer and source finder
-                result = await Runner.run(analyzer_finder, prompt)
+                # Run the unified analyzer and source finder with max_turns=15
+                result = await Runner.run(analyzer_finder, prompt, max_turns=15)
 
                 # Log trace information
                 logger.info(f"=== Trace Information ===")
