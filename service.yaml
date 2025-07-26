@@ -50,6 +50,10 @@ spec:
           value: "Instago"
         - name: OPENROUTER_SITE_URL
           value: "https://instago.app"
+        - name: MOONSHOT_BASE_URL
+          value: "https://api.moonshot.cn/v1"
+        - name: MOONSHOT_MODEL
+          value: "kimi-k2-0711-preview"
         - name: MILVUS_PORT
           value: "19530"
         - name: MILVUS_COLLECTION_NAME
@@ -135,6 +139,11 @@ spec:
             secretKeyRef:
               name: vertex-ai-project
               key: latest
+        - name: MOONSHOT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: moonshot-api-key
+              key: latest
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: "/secrets/gcs-key/key.json"
         volumeMounts:
@@ -151,3 +160,4 @@ spec:
   traffic:
   - percent: 100
     latestRevision: true
+
