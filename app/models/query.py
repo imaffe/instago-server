@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
-from sqlalchemy import String, Text, Integer, text
+from sqlalchemy import Text, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -28,7 +28,7 @@ class Query(Base):
     include_friends: Mapped[int] = mapped_column(Integer, default=0)  # Boolean stored as int
     
     # Optional fields
-    vector_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Milvus vector ID
+    vector_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Milvus vector ID
     
     # Timestamp
     created_at: Mapped[datetime] = mapped_column(
